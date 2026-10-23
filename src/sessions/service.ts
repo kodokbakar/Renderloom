@@ -52,6 +52,20 @@ export function getMimeType(filename: string): string {
 
 export class SessionService {
   readonly baseDir: string;
+  private readonly reservedSlugs = new Set<string>();
+  // ponytail: instance-level serialized creation lock, use per-slug locks or distributed lock if cross-process concurrency needed
+  private creationLock = Promise.resolve();
+  private async withCreationLock<T>(fn: () => Promise<T>): Promise<T> {
+    const { promise: ticket, resolve: release } = Promise.withResolvers<void>();
+    const wait = this.creationLock;
+    this.creationLock = ticket;
+    await wait;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
 
   constructor(customOutputsDir?: string) {
     this.baseDir = resolveOutputsDir(customOutputsDir);
@@ -130,86 +144,97 @@ export class SessionService {
     data: CreateSessionRequest,
     initialPrompt = "",
   ): Promise<Session> {
-    await this.ensureBaseDir();
+    return this.withCreationLock(async () => {
+      await this.ensureBaseDir();
 
-    const existingSlugs = await this.getExistingSlugs();
-    const slug = createSessionSlug(data.name, (s) => existingSlugs.has(s));
-    const sessionDir = validateSessionPath(this.baseDir, slug);
-
-    if (existsSync(sessionDir)) {
-      throw new SessionError(
-        "SESSION_ALREADY_EXISTS",
-        `Session directory '${slug}' already exists`,
+      const existingSlugs = await this.getExistingSlugs();
+      const slug = createSessionSlug(
+        data.name,
+        (s) => existingSlugs.has(s) || this.reservedSlugs.has(s),
       );
-    }
+      this.reservedSlugs.add(slug);
 
-    // Create session and subdirectories
-    await mkdir(path.join(sessionDir, "images"), { recursive: true });
-    await mkdir(path.join(sessionDir, "source"), { recursive: true });
-    await mkdir(path.join(sessionDir, "svg"), { recursive: true });
-    await mkdir(path.join(sessionDir, "assets"), { recursive: true });
+      try {
+        const sessionDir = validateSessionPath(this.baseDir, slug);
 
-    const now = new Date().toISOString();
-    const sessionId = randomUUID();
+        if (existsSync(sessionDir)) {
+          throw new SessionError(
+            "SESSION_ALREADY_EXISTS",
+            `Session directory '${slug}' already exists`,
+          );
+        }
 
-    const session: Session = {
-      schemaVersion: SESSION_SCHEMA_VERSION,
-      id: sessionId,
-      name: data.name.trim(),
-      slug,
-      createdAt: now,
-      updatedAt: now,
-      providerId: data.providerId,
-      modelId: data.modelId,
-      styleId: data.styleId,
-      dimensions: {
-        width: data.width,
-        height: data.height,
-      },
-    };
+        // Create session and subdirectories
+        await mkdir(path.join(sessionDir, "images"), { recursive: true });
+        await mkdir(path.join(sessionDir, "source"), { recursive: true });
+        await mkdir(path.join(sessionDir, "svg"), { recursive: true });
+        await mkdir(path.join(sessionDir, "assets"), { recursive: true });
 
-    const conversation: Conversation = {
-      sessionId,
-      messages: initialPrompt.trim()
-        ? [
-            {
-              id: randomUUID(),
-              role: "user",
-              content: initialPrompt.trim(),
-              timestamp: now,
-            },
-          ]
-        : [],
-      updatedAt: now,
-    };
+        const now = new Date().toISOString();
+        const sessionId = randomUUID();
 
-    const generationConfig: GenerationConfig = {
-      providerId: data.providerId,
-      modelId: data.modelId,
-      styleId: data.styleId,
-      candidateCount: 1,
-      width: data.width,
-      height: data.height,
-      outputFormat: "png",
-      createdAt: now,
-    };
+        const session: Session = {
+          schemaVersion: SESSION_SCHEMA_VERSION,
+          id: sessionId,
+          name: data.name.trim(),
+          slug,
+          createdAt: now,
+          updatedAt: now,
+          providerId: data.providerId,
+          modelId: data.modelId,
+          styleId: data.styleId,
+          dimensions: {
+            width: data.width,
+            height: data.height,
+          },
+        };
 
-    // Atomically write metadata
-    await atomicWriteJson(path.join(sessionDir, "session.json"), session);
-    await atomicWriteJson(
-      path.join(sessionDir, "conversation.json"),
-      conversation,
-    );
-    await atomicWriteFile(
-      path.join(sessionDir, "prompt.snapshot.txt"),
-      initialPrompt.trim(),
-    );
-    await atomicWriteJson(
-      path.join(sessionDir, "generation-config.json"),
-      generationConfig,
-    );
+        const conversation: Conversation = {
+          sessionId,
+          messages: initialPrompt.trim()
+            ? [
+                {
+                  id: randomUUID(),
+                  role: "user",
+                  content: initialPrompt.trim(),
+                  timestamp: now,
+                },
+              ]
+            : [],
+          updatedAt: now,
+        };
 
-    return session;
+        const generationConfig: GenerationConfig = {
+          providerId: data.providerId,
+          modelId: data.modelId,
+          styleId: data.styleId,
+          candidateCount: 1,
+          width: data.width,
+          height: data.height,
+          outputFormat: "png",
+          createdAt: now,
+        };
+
+        // Atomically write metadata
+        await atomicWriteJson(path.join(sessionDir, "session.json"), session);
+        await atomicWriteJson(
+          path.join(sessionDir, "conversation.json"),
+          conversation,
+        );
+        await atomicWriteFile(
+          path.join(sessionDir, "prompt.snapshot.txt"),
+          initialPrompt.trim(),
+        );
+        await atomicWriteJson(
+          path.join(sessionDir, "generation-config.json"),
+          generationConfig,
+        );
+
+        return session;
+      } finally {
+        this.reservedSlugs.delete(slug);
+      }
+    });
   }
 
   async listSessions(): Promise<SessionSummary[]> {
