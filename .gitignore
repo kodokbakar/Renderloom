@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build Outputs
+dist/
+build/
+.cache/
+
+# Local Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime & User Outputs
+Outputs/
+*.log
+
+# Editor & System
+.DS_Store
+*.swp
