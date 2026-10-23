@@ -296,6 +296,47 @@ describe("Restricted JSX Validator", () => {
         expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
       }
     });
+
+    test("rejects relative filesystem paths without baseDir in img src", () => {
+      const relativeSrcs = [
+        "package.json",
+        ".env",
+        "logo.png",
+        "./logo.png",
+        "assets/pic.png",
+      ];
+      for (const src of relativeSrcs) {
+        const code = `<div><img src="${src}" /></div>`;
+        expect(() => validateJsx(code)).toThrow(RenderError);
+        try {
+          validateJsx(code);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+        }
+      }
+    });
+
+    test("rejects CSS url(...) containing remote schemes in style attribute", () => {
+      const maliciousStyles = [
+        `<div style={{ display: "flex", backgroundImage: "url(http://evil.com/leak.png)" }}>Hello</div>`,
+        `<div style={{ display: "flex", backgroundImage: "url('https://evil.com/leak.png')" }}>Hello</div>`,
+        `<div style={{ display: "flex", backgroundImage: 'url("https://evil.com/leak.png")' }}>Hello</div>`,
+        `<div style={{ display: "flex", backgroundImage: "url(//evil.com/leak.png)" }}>Hello</div>`,
+        `<div style={{ display: "flex", backgroundImage: "url(ftp://evil.com/leak.png)" }}>Hello</div>`,
+        `<div style={{ display: "flex", background: "linear-gradient(red, blue), url(https://evil.com/leak.png)" }}>Hello</div>`,
+        `<div style={{ display: "flex", backgroundImage: "url('gopher://localhost:11211')" }}>Hello</div>`,
+        `<div style={{ display: "flex", backgroundImage: "url(data:text/html,<script>alert(1)</script>)" }}>Hello</div>`,
+      ];
+
+      for (const code of maliciousStyles) {
+        expect(() => validateJsx(code)).toThrow(RenderError);
+        try {
+          validateJsx(code);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+        }
+      }
+    });
   });
 
   describe("Allowed Valid Constructs", () => {
@@ -341,6 +382,16 @@ describe("Restricted JSX Validator", () => {
       const code = `
         <div style={{ display: "flex" }}>
           <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" width={10} height={10} />
+        </div>
+      `;
+      const validated = validateJsx(code);
+      expect(validated.rootElement).toBeDefined();
+    });
+
+    test("permits safe data:image URL in CSS style attribute", () => {
+      const code = `
+        <div style={{ display: "flex", backgroundImage: "url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==)" }}>
+          <span>Safe background</span>
         </div>
       `;
       const validated = validateJsx(code);
@@ -512,9 +563,25 @@ describe("Restricted JSX Validator", () => {
       }
     });
 
-    test("rejects malformed JSX with mismatched tags", () => {
-      const code = "<div><span>Mismatched</div></span>";
-      expect(() => validateJsx(code)).toThrow(RenderError);
+    test("rejects truncated/malformed JSX syntax like <div><span", () => {
+      const malformedSnippets = [
+        "<div><span",
+        "<div><span attr=",
+        "<div><img",
+        "<div style={{",
+        "<div><span></div>",
+        "<div><span>Mismatched</div></span>",
+      ];
+
+      for (const code of malformedSnippets) {
+        expect(() => validateJsx(code)).toThrow(RenderError);
+        try {
+          validateJsx(code);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNSUPPORTED_SYNTAX");
+          expect((err as RenderError).message).toContain("JSX syntax error");
+        }
+      }
     });
   });
 });

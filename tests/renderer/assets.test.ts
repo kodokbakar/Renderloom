@@ -2,10 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { RenderError } from "../../src/domain/errors";
 import {
+  ALLOWED_IMAGE_EXTENSIONS,
   isDataImageUrl,
   isDisallowedRemoteUrl,
   resolveAssetToDataUri,
   validateAssetSource,
+  validateCssUrls,
 } from "../../src/renderer/assets";
 
 describe("Asset Resolver and Security Guard", () => {
@@ -29,6 +31,9 @@ describe("Asset Resolver and Security Guard", () => {
         isDisallowedRemoteUrl("data:text/html,<script>alert(1)</script>"),
       ).toBe(true);
       expect(isDisallowedRemoteUrl("data:image/png;base64,abc")).toBe(false);
+      expect(isDisallowedRemoteUrl("gopher://localhost:11211")).toBe(true);
+      expect(isDisallowedRemoteUrl("ws://evil.com")).toBe(true);
+      expect(isDisallowedRemoteUrl("ldap://evil.com")).toBe(true);
       expect(isDisallowedRemoteUrl("assets/logo.png")).toBe(false);
     });
   });
@@ -100,8 +105,61 @@ describe("Asset Resolver and Security Guard", () => {
 
     test("permits safe relative path within base directory", () => {
       const baseDir = resolve(import.meta.dir, "../fixtures");
-      const valid = validateAssetSource("sample-card.jsx", baseDir);
+      const valid = validateAssetSource("artifacts/sample-card.png", baseDir);
       expect(valid.startsWith(baseDir)).toBe(true);
+    });
+
+    test("rejects relative filesystem paths when baseDir is undefined", () => {
+      const paths = [
+        "package.json",
+        ".env",
+        "image.png",
+        "./image.png",
+        "assets/logo.png",
+      ];
+      for (const p of paths) {
+        expect(() => validateAssetSource(p)).toThrow(RenderError);
+        try {
+          validateAssetSource(p);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+        }
+      }
+    });
+
+    test("rejects non-image file extensions even with baseDir", () => {
+      const baseDir = resolve(import.meta.dir, "../fixtures");
+      const disallowedFiles = [
+        "sample-card.jsx",
+        "secret.txt",
+        "package.json",
+        ".env",
+        "script.sh",
+      ];
+      for (const file of disallowedFiles) {
+        expect(() => validateAssetSource(file, baseDir)).toThrow(RenderError);
+        try {
+          validateAssetSource(file, baseDir);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+        }
+      }
+    });
+
+    test("rejects non-standard URI schemes with UNTRUSTED_REMOTE_ASSET", () => {
+      const schemes = [
+        "gopher://localhost:11211",
+        "ws://evil.com/stream",
+        "ldap://evil.com/dc",
+      ];
+      for (const s of schemes) {
+        expect(() => validateAssetSource(s)).toThrow(RenderError);
+        try {
+          validateAssetSource(s);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+        }
+      }
     });
 
     test("permits valid data:image URL directly", () => {
@@ -122,7 +180,7 @@ describe("Asset Resolver and Security Guard", () => {
     test("reads local file and returns base64 data URI", async () => {
       const baseDir = resolve(import.meta.dir, "..");
       const resolved = await resolveAssetToDataUri(
-        "fixtures/sample-card.jsx",
+        "fixtures/artifacts/sample-card.png",
         baseDir,
       );
       expect(resolved.startsWith("data:")).toBe(true);
@@ -138,6 +196,37 @@ describe("Asset Resolver and Security Guard", () => {
         expect(err instanceof RenderError).toBe(true);
         expect((err as RenderError).code).toBe("RENDER_FAILED");
       }
+    });
+  });
+
+  describe("CSS URL Validator", () => {
+    test("rejects remote URLs in CSS styles", () => {
+      const remoteCssValues = [
+        "url(http://evil.com/leak.png)",
+        "url('https://evil.com/leak.png')",
+        'url("https://evil.com/leak.png")',
+        "url(//evil.com/leak.png)",
+        "url(ftp://evil.com/leak.png)",
+        "url('gopher://localhost:11211')",
+        "url(data:text/html,<script>)",
+        "linear-gradient(red, blue), url(https://evil.com/test.png)",
+      ];
+
+      for (const val of remoteCssValues) {
+        expect(() => validateCssUrls(val)).toThrow(RenderError);
+        try {
+          validateCssUrls(val);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+        }
+      }
+    });
+
+    test("permits safe data:image and local fragment URLs in CSS styles", () => {
+      expect(() =>
+        validateCssUrls("url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==)"),
+      ).not.toThrow();
+      expect(() => validateCssUrls("url(#myGradient)")).not.toThrow();
     });
   });
 });

@@ -1,5 +1,5 @@
 import ts from "typescript";
-import { resolveAssetToDataUri } from "./assets";
+import { resolveAssetToDataUri, validateCssUrls } from "./assets";
 import type { VNode, VNodeChild, VNodeProps } from "./types";
 import { type ValidatedJsx, validateJsx } from "./validator";
 
@@ -37,6 +37,7 @@ function parseStyleObject(
     const init = prop.initializer;
 
     if (ts.isStringLiteral(init) || ts.isNoSubstitutionTemplateLiteral(init)) {
+      validateCssUrls(init.text);
       style[key] = init.text;
     } else if (ts.isNumericLiteral(init)) {
       style[key] = Number(init.text);

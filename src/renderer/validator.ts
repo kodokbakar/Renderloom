@@ -1,6 +1,6 @@
 import ts from "typescript";
 import { RenderError } from "../domain/errors";
-import { validateAssetSource } from "./assets";
+import { validateAssetSource, validateCssUrls } from "./assets";
 import { ALLOWED_ELEMENTS, type AllowedElement } from "./types";
 
 const DANGEROUS_TAGS: Record<string, true> = {
@@ -44,6 +44,29 @@ function getTagName(
     return element.openingElement.tagName.getText(sourceFile).trim();
   }
   return element.tagName.getText(sourceFile).trim();
+}
+function findDangerousTag(
+  node: ts.Node,
+  sourceFile: ts.SourceFile,
+): string | null {
+  if (ts.isJsxElement(node)) {
+    const tag = node.openingElement.tagName
+      .getText(sourceFile)
+      .trim()
+      .toLowerCase();
+    if (DANGEROUS_TAGS[tag]) {
+      return tag;
+    }
+  } else if (ts.isJsxSelfClosingElement(node)) {
+    const tag = node.tagName.getText(sourceFile).trim().toLowerCase();
+    if (DANGEROUS_TAGS[tag]) {
+      return tag;
+    }
+  }
+  return (
+    ts.forEachChild(node, (child) => findDangerousTag(child, sourceFile)) ??
+    null
+  );
 }
 
 function validateStyleObject(
@@ -104,6 +127,10 @@ function validateStyleObject(
         { code: init.getText(sourceFile) },
       );
     }
+
+    if (isString) {
+      validateCssUrls(init.text);
+    }
   }
 }
 
@@ -141,6 +168,7 @@ function validateAttributes(
       if (lowerAttrName === "src" && tagName === "img") {
         validateAssetSource(prop.initializer.text, options?.baseDir);
       }
+      validateCssUrls(prop.initializer.text);
       continue;
     }
 
@@ -190,11 +218,12 @@ function validateAttributes(
             { code: expr.getText(sourceFile) },
           );
         }
-        validateAssetSource(
-          ts.isStringLiteral(expr) ? expr.text : expr.text,
-          options?.baseDir,
-        );
+        validateAssetSource(expr.text, options?.baseDir);
         continue;
+      }
+
+      if (isString) {
+        validateCssUrls(expr.text);
       }
 
       if (!isString && !isNumber && !isUnaryNumber && !isBoolean) {
@@ -365,6 +394,43 @@ export function validateJsx(
         { code: stmt.getText(sourceFile) },
       );
     }
+  }
+
+  const dangerousTag = findDangerousTag(sourceFile, sourceFile);
+  if (dangerousTag) {
+    throw new RenderError(
+      "DANGEROUS_CODE_DETECTED",
+      `Prohibited HTML/JSX tag: <${dangerousTag}>`,
+      { tag: dangerousTag },
+    );
+  }
+
+  if (
+    "parseDiagnostics" in sourceFile &&
+    Array.isArray(sourceFile.parseDiagnostics) &&
+    sourceFile.parseDiagnostics.length > 0
+  ) {
+    const first = sourceFile.parseDiagnostics[0];
+    const messageText =
+      first && typeof first === "object" && "messageText" in first
+        ? first.messageText
+        : undefined;
+    const message =
+      typeof messageText === "string"
+        ? messageText
+        : messageText &&
+            typeof messageText === "object" &&
+            "messageText" in messageText &&
+            typeof messageText.messageText === "string"
+          ? messageText.messageText
+          : "JSX syntax error";
+    throw new RenderError(
+      "UNSUPPORTED_SYNTAX",
+      `JSX syntax error: ${message}`,
+      {
+        diagnostics: sourceFile.parseDiagnostics,
+      },
+    );
   }
 
   if (sourceFile.statements.length !== 1) {

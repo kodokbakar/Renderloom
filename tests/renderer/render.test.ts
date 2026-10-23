@@ -92,8 +92,10 @@ describe("Core Renderer Engine", () => {
       "<div><script>alert(1)</script></div>",
       `<div style={{ color: eval("red") }}>Hello</div>`,
       `<div><img src="https://evil.com/leak.png" /></div>`,
+      `<div style={{ display: "flex", backgroundImage: "url(http://evil.com/leak.png)" }}>SSRF</div>`,
+      `<div style={{ display: "flex" }}><img src="package.json" width={100} height={100} /></div>`,
+      "<div><span",
     ];
-
     for (const source of maliciousSources) {
       try {
         await render(source, { width: 400, height: 200 });
@@ -101,6 +103,40 @@ describe("Core Renderer Engine", () => {
       } catch (err) {
         expect(err instanceof RenderError).toBe(true);
       }
+    }
+  });
+
+  test("rejects SSRF via CSS url(...) in style attributes", async () => {
+    const jsx = `<div style={{ display: "flex", backgroundImage: "url(http://evil.com/leak.png)" }}>SSRF</div>`;
+    try {
+      await render(jsx, { width: 400, height: 200 });
+      expect().fail("Expected SSRF rejection");
+    } catch (err) {
+      expect(err instanceof RenderError).toBe(true);
+      expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+    }
+  });
+
+  test("rejects relative filesystem paths without baseDir", async () => {
+    const jsx = `<div style={{ display: "flex" }}><img src="package.json" width={100} height={100} /></div>`;
+    try {
+      await render(jsx, { width: 400, height: 200 });
+      expect().fail(
+        "Expected rejection for relative file read without baseDir",
+      );
+    } catch (err) {
+      expect(err instanceof RenderError).toBe(true);
+      expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+    }
+  });
+
+  test("rejects malformed JSX with UNSUPPORTED_SYNTAX", async () => {
+    try {
+      await render("<div><span", { width: 400, height: 200 });
+      expect().fail("Expected syntax error rejection");
+    } catch (err) {
+      expect(err instanceof RenderError).toBe(true);
+      expect((err as RenderError).code).toBe("UNSUPPORTED_SYNTAX");
     }
   });
 

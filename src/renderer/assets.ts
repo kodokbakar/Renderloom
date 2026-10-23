@@ -4,15 +4,16 @@ import { extname, isAbsolute, normalize, resolve } from "node:path";
 import { RenderError } from "../domain/errors";
 
 const DATA_IMAGE_PREFIX = "data:image/";
-const DISALLOWED_PROTOCOLS = [
-  "http:",
-  "https:",
-  "ftp:",
-  "file:",
-  "javascript:",
-  "blob:",
-  "data:",
-];
+const URI_SCHEME_REGEX = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+export const ALLOWED_IMAGE_EXTENSIONS: Record<string, true> = {
+  ".png": true,
+  ".jpg": true,
+  ".jpeg": true,
+  ".svg": true,
+  ".webp": true,
+  ".gif": true,
+};
 
 const MIME_BY_EXT: Record<string, string> = {
   ".png": "image/png",
@@ -24,23 +25,36 @@ const MIME_BY_EXT: Record<string, string> = {
 };
 
 export function isDataImageUrl(src: string): boolean {
-  return src.startsWith(DATA_IMAGE_PREFIX);
+  return src.trim().toLowerCase().startsWith(DATA_IMAGE_PREFIX);
 }
 
 export function isDisallowedRemoteUrl(src: string): boolean {
-  const trimmed = src.trim().toLowerCase();
+  const trimmed = src.trim();
   if (trimmed.startsWith("//")) {
     return true;
   }
-  for (const protocol of DISALLOWED_PROTOCOLS) {
-    if (trimmed.startsWith(protocol)) {
-      if (protocol === "data:" && trimmed.startsWith(DATA_IMAGE_PREFIX)) {
-        return false;
-      }
-      return true;
-    }
+  const match = trimmed.match(URI_SCHEME_REGEX);
+  if (match) {
+    return !trimmed.toLowerCase().startsWith(DATA_IMAGE_PREFIX);
   }
   return false;
+}
+
+export function validateCssUrls(cssValue: string): void {
+  const matches = cssValue.matchAll(
+    /url\(\s*(?:(['"])(.*?)\1|([^'"\)]*))\s*\)/gi,
+  );
+  for (const match of matches) {
+    const rawUrl = (match[2] ?? match[3] ?? "").trim();
+    const cleanUrl = rawUrl.replace(/\\/g, "");
+    if (isDisallowedRemoteUrl(cleanUrl)) {
+      throw new RenderError(
+        "UNTRUSTED_REMOTE_ASSET",
+        `Untrusted remote URL in CSS style: ${rawUrl}`,
+        { url: rawUrl },
+      );
+    }
+  }
 }
 
 export function validateAssetSource(src: string, baseDir?: string): string {
@@ -69,6 +83,13 @@ export function validateAssetSource(src: string, baseDir?: string): string {
       { src: trimmed },
     );
   }
+  if (!baseDir) {
+    throw new RenderError(
+      "UNTRUSTED_REMOTE_ASSET",
+      `Relative and filesystem asset paths are not permitted without base directory: ${trimmed}`,
+      { src: trimmed },
+    );
+  }
 
   const normalized = normalize(trimmed);
   const segments = normalized.split(/[\/\\]/);
@@ -80,34 +101,32 @@ export function validateAssetSource(src: string, baseDir?: string): string {
     );
   }
 
-  if (baseDir) {
-    const resolvedBase = resolve(baseDir);
-    const targetPath = isAbsolute(trimmed)
-      ? resolve(trimmed)
-      : resolve(resolvedBase, trimmed);
+  const resolvedBase = resolve(baseDir);
+  const targetPath = isAbsolute(trimmed)
+    ? resolve(trimmed)
+    : resolve(resolvedBase, trimmed);
 
-    if (
-      !targetPath.startsWith(`${resolvedBase}/`) &&
-      targetPath !== resolvedBase
-    ) {
-      throw new RenderError(
-        "UNTRUSTED_REMOTE_ASSET",
-        `Asset path escapes allowed base directory: ${trimmed}`,
-        { src: trimmed, baseDir },
-      );
-    }
-    return targetPath;
-  }
-
-  if (isAbsolute(trimmed)) {
+  if (
+    !targetPath.startsWith(`${resolvedBase}/`) &&
+    targetPath !== resolvedBase
+  ) {
     throw new RenderError(
       "UNTRUSTED_REMOTE_ASSET",
-      `Absolute filesystem path not permitted without base directory: ${trimmed}`,
-      { src: trimmed },
+      `Asset path escapes allowed base directory: ${trimmed}`,
+      { src: trimmed, baseDir },
     );
   }
 
-  return trimmed;
+  const ext = extname(targetPath).toLowerCase();
+  if (!ALLOWED_IMAGE_EXTENSIONS[ext]) {
+    throw new RenderError(
+      "UNTRUSTED_REMOTE_ASSET",
+      `Disallowed asset file extension: ${ext || "(none)"}. Allowed extensions: ${Object.keys(ALLOWED_IMAGE_EXTENSIONS).join(", ")}`,
+      { src: trimmed, ext },
+    );
+  }
+
+  return targetPath;
 }
 
 export async function resolveAssetToDataUri(
@@ -119,7 +138,7 @@ export async function resolveAssetToDataUri(
     return validated;
   }
 
-  const filePath = baseDir ? validated : resolve(process.cwd(), validated);
+  const filePath = validated;
   if (!existsSync(filePath)) {
     throw new RenderError("RENDER_FAILED", `Asset file not found: ${src}`, {
       src,
@@ -130,10 +149,20 @@ export async function resolveAssetToDataUri(
   try {
     const fileBytes = await readFile(filePath);
     const ext = extname(filePath).toLowerCase();
-    const mime = MIME_BY_EXT[ext] ?? "application/octet-stream";
+    const mime = MIME_BY_EXT[ext];
+    if (!mime) {
+      throw new RenderError(
+        "UNTRUSTED_REMOTE_ASSET",
+        `Unsupported asset file extension: ${ext}`,
+        { src, filePath, ext },
+      );
+    }
     const base64 = fileBytes.toString("base64");
     return `data:${mime};base64,${base64}`;
   } catch (error) {
+    if (error instanceof RenderError) {
+      throw error;
+    }
     throw new RenderError(
       "RENDER_FAILED",
       `Failed to read asset file ${src}: ${error instanceof Error ? error.message : String(error)}`,
