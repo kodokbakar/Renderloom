@@ -37,6 +37,21 @@ export const ArtifactParamsSchema = z.object({
   filename: z.string().min(1),
 });
 
+export const SetKeyRequestSchema = z.object({
+  providerId: z.string().min(1, "providerId is required"),
+  apiKey: z.string().min(1, "apiKey is required"),
+  baseUrl: z.string().optional(),
+});
+export type SetKeyRequest = z.infer<typeof SetKeyRequestSchema>;
+
+export const TestConnectionRequestSchema = z.object({
+  providerId: z.string().min(1, "providerId is required"),
+  modelId: z.string().min(1, "modelId is required"),
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+});
+export type TestConnectionRequest = z.infer<typeof TestConnectionRequestSchema>;
+
 export function validateGenerationRequest(input: unknown): GenerationRequest {
   const result = GenerationRequestSchema.safeParse(input);
   if (!result.success) {
@@ -66,6 +81,27 @@ export function validateRenameSessionRequest(input: unknown): { name: string } {
   if (!result.success) {
     throw new ValidationError(
       "Invalid session rename request",
+      result.error.format(),
+    );
+  }
+  return result.data;
+}
+
+export function validateSetKeyRequest(input: unknown): SetKeyRequest {
+  const result = SetKeyRequestSchema.safeParse(input);
+  if (!result.success) {
+    throw new ValidationError("Invalid set key request", result.error.format());
+  }
+  return result.data;
+}
+
+export function validateTestConnectionRequest(
+  input: unknown,
+): TestConnectionRequest {
+  const result = TestConnectionRequestSchema.safeParse(input);
+  if (!result.success) {
+    throw new ValidationError(
+      "Invalid test connection request",
       result.error.format(),
     );
   }

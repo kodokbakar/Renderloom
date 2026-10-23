@@ -1,11 +1,15 @@
 import { ValidationError } from "../domain/errors";
+import { InMemoryKeyStore } from "../llm/keystore";
+import { ProviderRegistry } from "../llm/registry";
 import { SessionService } from "../sessions/service";
+import { handleLlmRoute } from "./routes/llm";
 import { handleSessionRoute } from "./routes/sessions";
 import { validateGenerationRequest } from "./validation";
-
 export interface ServerOptions {
   port?: number;
   sessionService?: SessionService;
+  keyStore?: InMemoryKeyStore;
+  providerRegistry?: ProviderRegistry;
 }
 
 export function createServer(
@@ -23,6 +27,15 @@ export function createServer(
       ? portOrOptions.sessionService
       : undefined) ??
     new SessionService();
+
+  const keyStore =
+    (typeof portOrOptions === "object" ? portOrOptions.keyStore : undefined) ??
+    new InMemoryKeyStore();
+
+  const providerRegistry =
+    (typeof portOrOptions === "object"
+      ? portOrOptions.providerRegistry
+      : undefined) ?? new ProviderRegistry();
 
   return Bun.serve({
     port,
@@ -61,6 +74,16 @@ export function createServer(
         url,
         sessionService,
       );
+
+      const llmResponse = await handleLlmRoute(
+        req,
+        url,
+        keyStore,
+        providerRegistry,
+      );
+      if (llmResponse) {
+        return llmResponse;
+      }
       if (sessionResponse) {
         return sessionResponse;
       }
