@@ -31,3 +31,30 @@
 - Implemented `SessionService` in `src/sessions/service.ts`: session CRUD, reopen, safe deletion, artifact management across `images/`, `source/`, `svg/`, and `assets/`, immutable version protection, and corrupt metadata isolation in `listSessions()`.
 - Implemented Bun HTTP API routes in `src/server/routes/sessions.ts` and `src/server/server.ts`: session listing, creation, reopen, rename, deletion, and controlled artifact streaming with MIME headers (`image/png`, `image/svg+xml`, `text/plain`).
 - Added end-to-end integration and security test suites across `tests/sessions/` and `tests/server/`.
+
+### Phase 3: LLM Provider and BYOK Configuration
+- Defined provider contracts in `src/domain/provider.ts` (`ProviderAdapter`, `ProviderMeta`, `ProviderModel`, `ConnectionTestResult`, `LLMGenerationRequest`, `LLMGenerationResponse`) and extended error model with `ProviderError` and `ProviderErrorCode` (`UNAUTHORIZED`, `INSUFFICIENT_QUOTA`, `RATE_LIMITED`, `MODEL_NOT_FOUND`, `TIMEOUT`, `NETWORK_ERROR`, `INVALID_REQUEST`, `PROVIDER_ERROR`).
+- Implemented API key masking in `src/security/mask.ts`: formats OpenAI (`sk-...xxxx`) and Anthropic (`sk-ant-...xxxx`) prefixes while concealing sensitive body.
+- Implemented base URL security validator in `src/security/url.ts`: protocol enforcement (`http:`, `https:` only), embedded credentials rejection, path traversal rejection, cloud metadata blocking (`169.254.169.254`, `metadata.google.internal`, `100.100.100.200`, `fd00:ec2::254`), and local loopback support for local LLM engines when explicitly enabled.
+- Implemented transient `InMemoryKeyStore` in `src/llm/keystore.ts`: holds BYOK credentials strictly in memory during application runtime with zero filesystem persistence or disk writes; `getStatus()` exposes masked indicator and never reveals raw keys.
+- Implemented normalized error mapper in `src/llm/errors.ts`: maps HTTP 401, 402, 404, 429, 5xx, timeouts, and network connection faults to structured `ProviderError` with recursive secret redaction preventing credential reflection.
+- Implemented native Bun fetch client wrapper in `src/llm/adapters/base.ts` with configurable timeout and abort signaling.
+- Implemented `OpenAIAdapter` in `src/llm/adapters/openai.ts` supporting standard OpenAI endpoints and custom OpenAI-compatible servers (Ollama, vLLM).
+- Implemented `AnthropicAdapter` in `src/llm/adapters/anthropic.ts` supporting Anthropic Messages API with header injection and custom base URL rejection.
+- Implemented `ProviderRegistry` in `src/llm/registry.ts` managing adapter discovery and lifecycle.
+- Implemented Bun HTTP routes in `src/server/routes/llm.ts` and wired into `src/server/server.ts`:
+  - `GET /api/llm/providers`: returns registered providers and configuration status (masked keys only).
+  - `POST /api/llm/keys`: stores BYOK key in transient memory.
+  - `DELETE /api/llm/keys/:providerId`: purges key from memory (forget key action).
+  - `GET /api/llm/keys/status`: returns status of configured providers.
+  - `POST /api/llm/test-connection`: tests provider connectivity and credentials without generating images or persisting data.
+- Added unit and integration test suites:
+  - `tests/security/url-validator.test.ts` (SSRF, cloud metadata, traversal, credentials, protocol).
+  - `tests/security/mask.test.ts` (OpenAI, Anthropic, short keys, edge cases).
+  - `tests/llm/keystore.test.ts` (CRUD, status, case-insensitivity, isolation).
+  - `tests/llm/error-mapping.test.ts` (status code mapping, timeouts, network faults, secret scrubbing).
+  - `tests/llm/openai-adapter.test.ts` (connection test, generation, custom baseUrl).
+  - `tests/llm/anthropic-adapter.test.ts` (connection test, generation, header injection, custom baseUrl rejection).
+  - `tests/server/llm-api.test.ts` (full HTTP API integration test).
+  - `tests/llm/sentinel-leak.test.ts` (sentinel fake key proof: zero leak across error messages, JSON responses, and `Outputs/` directory).
+- Verified: `bun test` (235 passing tests across 28 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).

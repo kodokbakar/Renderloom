@@ -5,7 +5,7 @@ const SECRET_PATTERNS: RegExp[] = [
   /sk-ant-[a-zA-Z0-9_\-]{20,}/g, // Anthropic API keys
   /AIza[0-9A-Za-z\-_]{35,}/g, // Google API keys
   /Bearer\s+[a-zA-Z0-9_\-\.]{20,}/gi, // Bearer tokens
-  /(?:api[_-]?key|secret|token|password)\s*[:=]\s*["']?[a-zA-Z0-9_\-\.]{16,}["']?/gi,
+  /(?:x-api-key|api[_-]?key|secret|token|password)\s*[:=]\s*["']?[a-zA-Z0-9_\-\.]{16,}["']?/gi,
 ];
 
 const SENSITIVE_KEY_NAMES: Record<string, true> = {
@@ -18,6 +18,8 @@ const SENSITIVE_KEY_NAMES: Record<string, true> = {
   password: true,
   credential: true,
   credentials: true,
+  "x-api-key": true,
+  x_api_key: true,
 };
 
 export function containsSecret(input: string): boolean {

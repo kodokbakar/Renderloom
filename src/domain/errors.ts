@@ -51,3 +51,25 @@ export class SessionError extends Error {
     this.name = "SessionError";
   }
 }
+
+export type ProviderErrorCode =
+  | "UNAUTHORIZED"
+  | "INSUFFICIENT_QUOTA"
+  | "RATE_LIMITED"
+  | "MODEL_NOT_FOUND"
+  | "TIMEOUT"
+  | "NETWORK_ERROR"
+  | "INVALID_REQUEST"
+  | "PROVIDER_ERROR";
+
+export class ProviderError extends Error implements RenderloomError {
+  constructor(
+    public readonly code: ProviderErrorCode,
+    message: string,
+    public readonly providerId?: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ProviderError";
+  }
+}

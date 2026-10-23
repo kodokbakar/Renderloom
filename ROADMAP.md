@@ -298,20 +298,20 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Let users connect their own supported cloud LLM APIs without leaking their credentials.
 
-- [ ] Define a provider adapter interface that exposes model selection, key validation where supported, request generation, response normalization, and safe error mapping.
-- [ ] Implement an initial supported-provider set. At minimum, provide a generic OpenAI-compatible endpoint adapter and document any provider-specific adapters included in the first release.
-- [ ] Keep provider-specific request and response formats inside their adapters.
-- [ ] Let the user choose a provider, enter a model ID, and input their API key.
-- [ ] Support custom base URLs only for explicitly configured OpenAI-compatible endpoints; validate schemes and reject unsupported or unsafe local-network targets where applicable.
-- [ ] Allow the user to test a provider/model/key combination without generating images.
-- [ ] Keep the API key in transient application memory by default. Do not save it to `Outputs/`, the conversation, prompt files, source code, browser local storage, analytics, or logs.
-- [ ] Send credentials only to the local API over the local app's own request path, then use them for the user's explicitly selected provider request. Do not add credentials to URLs.
-- [ ] Never return the raw key to the frontend after submission; show only a masked indicator and a clear “key is held for this run/session” status.
-- [ ] Clear the in-memory key when the app session or credential scope ends, and provide a visible “forget key” action.
+- [x] Define a provider adapter interface that exposes model selection, key validation where supported, request generation, response normalization, and safe error mapping.
+- [x] Implement an initial supported-provider set. At minimum, provide a generic OpenAI-compatible endpoint adapter and document any provider-specific adapters included in the first release.
+- [x] Keep provider-specific request and response formats inside their adapters.
+- [x] Let the user choose a provider, enter a model ID, and input their API key.
+- [x] Support custom base URLs only for explicitly configured OpenAI-compatible endpoints; validate schemes and reject unsupported or unsafe local-network targets where applicable.
+- [x] Allow the user to test a provider/model/key combination without generating images.
+- [x] Keep the API key in transient application memory by default. Do not save it to `Outputs/`, the conversation, prompt files, source code, browser local storage, analytics, or logs.
+- [x] Send credentials only to the local API over the local app's own request path, then use them for the user's explicitly selected provider request. Do not add credentials to URLs.
+- [x] Never return the raw key to the frontend after submission; show only a masked indicator and a clear “key is held for this run/session” status.
+- [x] Clear the in-memory key when the app session or credential scope ends, and provide a visible “forget key” action.
 - [ ] If persistent key storage is added later, require explicit user opt-in and use the operating system credential vault/keychain where available. Do not fall back to plaintext JSON or `.env` storage.
-- [ ] Redact authorization headers, tokens, API keys, and full credential-bearing provider errors from all logs and UI errors.
-- [ ] Handle unauthorized keys, insufficient quota, rate limits, unsupported models, timeouts, network errors, and provider outages with actionable but non-sensitive messages.
-- [ ] Add tests proving that sentinel fake keys never appear in serialized sessions, logs, network error messages, screenshots, or output files.
+- [x] Redact authorization headers, tokens, API keys, and full credential-bearing provider errors from all logs and UI errors.
+- [x] Handle unauthorized keys, insufficient quota, rate limits, unsupported models, timeouts, network errors, and provider outages with actionable but non-sensitive messages.
+- [x] Add tests proving that sentinel fake keys never appear in serialized sessions, logs, network error messages, screenshots, or output files.
 
 **Acceptance criteria**
 
