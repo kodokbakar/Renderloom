@@ -1,7 +1,29 @@
 import { ValidationError } from "../domain/errors";
+import { SessionService } from "../sessions/service";
+import { handleSessionRoute } from "./routes/sessions";
 import { validateGenerationRequest } from "./validation";
 
-export function createServer(port = 3000) {
+export interface ServerOptions {
+  port?: number;
+  sessionService?: SessionService;
+}
+
+export function createServer(
+  portOrOptions: number | ServerOptions = 3000,
+  injectedService?: SessionService,
+) {
+  const port =
+    typeof portOrOptions === "number"
+      ? portOrOptions
+      : (portOrOptions.port ?? 3000);
+
+  const sessionService =
+    injectedService ??
+    (typeof portOrOptions === "object"
+      ? portOrOptions.sessionService
+      : undefined) ??
+    new SessionService();
+
   return Bun.serve({
     port,
     async fetch(req) {
@@ -32,6 +54,15 @@ export function createServer(port = 3000) {
             { status: 400 },
           );
         }
+      }
+
+      const sessionResponse = await handleSessionRoute(
+        req,
+        url,
+        sessionService,
+      );
+      if (sessionResponse) {
+        return sessionResponse;
       }
 
       return new Response("Not Found", { status: 404 });

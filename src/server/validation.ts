@@ -24,6 +24,17 @@ export const CreateSessionRequestSchema = z.object({
   styleId: z.string().min(1),
   width: z.number().int().min(64).max(4096),
   height: z.number().int().min(64).max(4096),
+  initialPrompt: z.string().optional(),
+});
+
+export const RenameSessionRequestSchema = z.object({
+  name: z.string().min(1, "name is required").max(100),
+});
+
+export const ArtifactParamsSchema = z.object({
+  id: z.string().min(1),
+  type: z.enum(["images", "source", "svg", "assets"]),
+  filename: z.string().min(1),
 });
 
 export function validateGenerationRequest(input: unknown): GenerationRequest {
@@ -44,6 +55,17 @@ export function validateCreateSessionRequest(
   if (!result.success) {
     throw new ValidationError(
       "Invalid session creation request",
+      result.error.format(),
+    );
+  }
+  return result.data;
+}
+
+export function validateRenameSessionRequest(input: unknown): { name: string } {
+  const result = RenameSessionRequestSchema.safeParse(input);
+  if (!result.success) {
+    throw new ValidationError(
+      "Invalid session rename request",
       result.error.format(),
     );
   }
