@@ -107,4 +107,25 @@ describe("Base URL Security Validator", () => {
       ValidationError,
     );
   });
+
+  test("blocks IPv6-mapped IPv4 cloud metadata endpoints", () => {
+    expect(() =>
+      validateBaseUrl("http://[::ffff:169.254.169.254]/latest/meta-data", true),
+    ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl("http://[::ffff:a9fe:a9fe]/latest/meta-data", true),
+    ).toThrow(ValidationError);
+  });
+
+  test("rejects IPv6 unspecified and IPv6-mapped private addresses when allowCustom is false", () => {
+    expect(() => validateBaseUrl("http://[::]:8000", false)).toThrow(
+      ValidationError,
+    );
+    expect(() =>
+      validateBaseUrl("http://[::ffff:127.0.0.1]:8000", false),
+    ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl("http://[::ffff:10.0.0.1]:8000", false),
+    ).toThrow(ValidationError);
+  });
 });

@@ -154,4 +154,28 @@ describe("Sentinel Secret-Leak Verification", () => {
 
     checkDir(outputsDir);
   });
+
+  test("error normalizer scrubs sentinel keys deeply nested in arrays and objects", () => {
+    const deepError = {
+      status: 400,
+      message: `Failed request at https://api.openai.com/v1?token=${SENTINEL_KEY}`,
+      details: {
+        errors: [
+          {
+            context: {
+              authorization: `Bearer ${SENTINEL_KEY}`,
+              rawKey: SENTINEL_KEY,
+              hints: [`check key ${SENTINEL_KEY}`],
+            },
+          },
+        ],
+      },
+    };
+
+    const normalized = normalizeProviderError(deepError, "openai");
+    expect(normalized.message).not.toContain(SENTINEL_KEY);
+
+    const serialized = JSON.stringify(normalized);
+    expect(serialized).not.toContain(SENTINEL_KEY);
+  });
 });

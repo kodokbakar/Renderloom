@@ -114,4 +114,47 @@ describe("OpenAI Adapter", () => {
     expect(res.usage?.totalTokens).toBe(165);
     expect(res.durationMs).toBeGreaterThanOrEqual(0);
   });
+
+  test("testConnection handles malformed JSON error body safely", async () => {
+    const mockFetch: FetchFunction = async () => {
+      return new Response("{not-valid-json", {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+
+    const adapter = new OpenAIAdapter({ fetchFn: mockFetch });
+    const result = await adapter.testConnection("sk-test-key", "gpt-4o");
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe("PROVIDER_ERROR");
+    expect(result.error).toContain("500");
+  });
+
+  test("testConnection handles non-JSON HTML error body safely", async () => {
+    const mockFetch: FetchFunction = async () => {
+      return new Response("<html><body>502 Bad Gateway</body></html>", {
+        status: 502,
+        headers: { "Content-Type": "text/html" },
+      });
+    };
+
+    const adapter = new OpenAIAdapter({ fetchFn: mockFetch });
+    const result = await adapter.testConnection("sk-test-key", "gpt-4o");
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe("PROVIDER_ERROR");
+    expect(result.error).toContain("502");
+  });
+
+  test("prevents header injection via CRLF in API key", async () => {
+    const adapter = new OpenAIAdapter();
+    const result = await adapter.testConnection(
+      "sk-test\r\nX-Injected: evil",
+      "gpt-4o",
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe("NETWORK_ERROR");
+  });
 });

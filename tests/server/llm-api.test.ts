@@ -158,4 +158,54 @@ describe("LLM API Routes", () => {
     });
     expect(testRes.status).toBe(400);
   });
+
+  test("purging key mid-flight does not affect running request but blocks subsequent requests", async () => {
+    // 1. Set key
+    keyStore.setKey("openai", "sk-valid-key");
+
+    // 2. Start connection test
+    const activeTestPromise = fetch(`${baseUrl}/api/llm/test-connection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "openai",
+        modelId: "gpt-4o",
+      }),
+    });
+
+    // 3. Purge key immediately
+    const delRes = await fetch(`${baseUrl}/api/llm/keys/openai`, {
+      method: "DELETE",
+    });
+    expect(delRes.status).toBe(200);
+
+    // 4. In-flight request finishes cleanly
+    const activeRes = await activeTestPromise;
+    expect(activeRes.status).toBe(200);
+
+    // 5. Subsequent request has no key and fails
+    const subsequentRes = await fetch(`${baseUrl}/api/llm/test-connection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "openai",
+        modelId: "gpt-4o",
+      }),
+    });
+    expect(subsequentRes.status).toBe(400);
+    const errJson = (await subsequentRes.json()) as { error: string };
+    expect(errJson.error).toContain("No API key provided or configured");
+  });
+
+  test("rejects malformed requests missing required fields", async () => {
+    const res = await fetch(`${baseUrl}/api/llm/test-connection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as { code: string };
+    expect(json.code).toBe("VALIDATION_ERROR");
+  });
 });

@@ -76,4 +76,34 @@ describe("InMemoryKeyStore", () => {
     expect(() => store.setKey("openai", "")).toThrow(ValidationError);
     expect(() => store.setKey("openai", "   ")).toThrow(ValidationError);
   });
+
+  test("handles concurrent updates and status consistency across providers", async () => {
+    const store = new InMemoryKeyStore();
+    const providers = ["openai", "anthropic", "custom-1", "custom-2"];
+
+    await Promise.all(
+      providers.map(async (p, idx) => {
+        store.setKey(p, `sk-concurrent-key-${idx}-${p}`);
+      }),
+    );
+
+    const status = store.getStatus();
+    for (const p of providers) {
+      expect(store.hasKey(p)).toBe(true);
+      expect(status[p]).toBeDefined();
+      expect(status[p]?.configured).toBe(true);
+    }
+
+    // Interleaved concurrent overwrite and delete
+    await Promise.all([
+      store.setKey("openai", "sk-new-key-111"),
+      store.deleteKey("custom-1"),
+      store.setKey("custom-2", "sk-new-key-222"),
+    ]);
+
+    expect(store.hasKey("custom-1")).toBe(false);
+    expect(store.hasKey("openai")).toBe(true);
+    expect(store.hasKey("custom-2")).toBe(true);
+    expect(store.getKey("openai")?.apiKey).toBe("sk-new-key-111");
+  });
 });
