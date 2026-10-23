@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "bauhaus",
+  "name": "Bauhaus",
+  "description": "Modernist German movement emphasizing primary colors, bold geometric forms, functional hierarchy, and asymmetric balance.",
+  "designPrinciples": [
+    "Form strictly follows function",
+    "Bold primary colors anchored with strong black and warm off-white",
+    "Asymmetrical composition balanced by weight and scale",
+    "Geometric foundational shapes (rectangles, circles, solid dividing rules)"
+  ],
+  "palette": {
+    "background": "#F5F5F0",
+    "foreground": "#111111",
+    "primary": "#D02020",
+    "secondary": "#1D4ED8",
+    "accent": "#FBBF24",
+    "muted": "#71717A",
+    "border": "#111111"
+  },
+  "typography": {
+    "fontFamily": "sans-serif",
+    "headingWeight": 800,
+    "bodyWeight": 400,
+    "scale": ["48px", "32px", "20px", "14px"],
+    "guidelines": [
+      "Use heavy, high-contrast sans-serif headings",
+      "Treat typography as a structural geometric element",
+      "Keep body copy clean, concise, and unadorned"
+    ]
+  },
+  "layout": {
+    "structure": "Asymmetrical column and card arrangement with distinct color blocks",
+    "spacing": "Exaggerated padding (32px to 48px) separating stark geometric sections",
+    "alignment": "Strict edge-to-edge alignment with high contrast borders",
+    "rules": [
+      "Use bold solid background blocks for visual weight distribution",
+      "Divide major sections with 3px to 6px solid #111111 rules",
+      "Incorporate circular or rectangular accent badges"
+    ]
+  },
+  "allowedEffects": [
+    "solid borders",
+    "geometric color block backgrounds",
+    "offset solid color accents"
+  ],
+  "patternsToAvoid": [
+    "Soft blurred drop shadows",
+    "Multi-stop gradient fills",
+    "Organic or decorative serif flourishes",
+    "Symmetrical, centered badge compositions"
+  ],
+  "visualSample": {
+    "background": "#F5F5F0",
+    "foreground": "#111111",
+    "accent": "#D02020",
+    "previewText": "BAUHAUS"
+  }
+}

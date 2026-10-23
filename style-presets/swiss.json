@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "swiss",
+  "name": "Swiss International",
+  "description": "International Typographic Style rooted in mathematical precision, objective clarity, asymmetric grid alignment, and purposeful white space.",
+  "designPrinciples": [
+    "Mathematical precision and structural clarity",
+    "Objective presentation of information without decorative distraction",
+    "Prominent asymmetrical hierarchy anchored by generous whitespace",
+    "Vivid crimson accent punctuating a disciplined neutral substrate"
+  ],
+  "palette": {
+    "background": "#F8FAFC",
+    "foreground": "#0F172A",
+    "primary": "#E11D48",
+    "secondary": "#334155",
+    "accent": "#E11D48",
+    "muted": "#64748B",
+    "border": "#E2E8F0"
+  },
+  "typography": {
+    "fontFamily": "Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif",
+    "headingWeight": 700,
+    "bodyWeight": 400,
+    "scale": ["56px", "36px", "24px", "16px", "12px"],
+    "guidelines": [
+      "Rigid typographic scale with clear size step-downs",
+      "Flush-left, ragged-right text alignment",
+      "Tight, deliberate line heights (1.1 for display titles, 1.4 for captions)"
+    ]
+  },
+  "layout": {
+    "structure": "Rigid multi-column flex alignment with uniform module gaps",
+    "spacing": "Disciplined rhythmic units (8px, 16px, 24px, 48px, 64px)",
+    "alignment": "Consistent left flush baseline alignment across disparate modules",
+    "rules": [
+      "Dedicate at least 40% of the canvas surface to intentional negative space",
+      "Use thin 1px horizontal division lines in #E2E8F0 to delineate content zones",
+      "Highlight primary numbers or key callouts in vivid crimson #E11D48"
+    ]
+  },
+  "allowedEffects": [
+    "1px crisp divider lines",
+    "high-contrast numeric indicators",
+    "pure flat color panels"
+  ],
+  "patternsToAvoid": [
+    "Centered title and body text blocks",
+    "Drop shadows and glow effects",
+    "Skeuomorphic textures or skeuomorphic bevels",
+    "Random or non-modular padding steps"
+  ],
+  "visualSample": {
+    "background": "#F8FAFC",
+    "foreground": "#0F172A",
+    "accent": "#E11D48",
+    "previewText": "HELVETICA"
+  }
+}
