@@ -205,4 +205,149 @@ describe("Sessions HTTP API Endpoints", () => {
     );
     expect(missingRes.status).toBe(404);
   });
+
+  test("POST /api/sessions validates dimension boundaries and payload constraints", async () => {
+    // width below minimum (64)
+    const resLow = await fetch(`${baseUrl}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Dimension Test",
+        providerId: "openai",
+        modelId: "gpt-4o",
+        styleId: "swiss",
+        width: 32,
+        height: 800,
+      }),
+    });
+    expect(resLow.status).toBe(400);
+
+    // height above maximum (4096)
+    const resHigh = await fetch(`${baseUrl}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Dimension Test",
+        providerId: "openai",
+        modelId: "gpt-4o",
+        styleId: "swiss",
+        width: 800,
+        height: 5000,
+      }),
+    });
+    expect(resHigh.status).toBe(400);
+
+    // Name exceeding 100 characters
+    const resLongName = await fetch(`${baseUrl}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "x".repeat(101),
+        providerId: "openai",
+        modelId: "gpt-4o",
+        styleId: "swiss",
+        width: 800,
+        height: 800,
+      }),
+    });
+    expect(resLongName.status).toBe(400);
+  });
+
+  test("PATCH and DELETE return 404 for non-existent session IDs", async () => {
+    const patchRes = await fetch(
+      `${baseUrl}/api/sessions/non-existent-id-404`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Updated Name" }),
+      },
+    );
+    expect(patchRes.status).toBe(404);
+
+    const delRes = await fetch(`${baseUrl}/api/sessions/non-existent-id-404`, {
+      method: "DELETE",
+    });
+    expect(delRes.status).toBe(404);
+  });
+
+  test("PATCH /api/sessions/:id validates rename payload constraints", async () => {
+    const createRes = await fetch(`${baseUrl}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Rename Constraint Test",
+        providerId: "openai",
+        modelId: "gpt-4o",
+        styleId: "swiss",
+        width: 800,
+        height: 800,
+      }),
+    });
+    const { session } = await createRes.json();
+
+    // Empty name
+    const emptyRes = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "" }),
+    });
+    expect(emptyRes.status).toBe(400);
+
+    // Overlong name
+    const longRes = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "a".repeat(101) }),
+    });
+    expect(longRes.status).toBe(400);
+  });
+
+  test("handles path traversal in session ID gracefully", async () => {
+    const res = await fetch(`${baseUrl}/api/sessions/..%2F..%2Fetc%2Fpasswd`);
+    expect(res.status).toBe(400);
+  });
+
+  test("GET artifact endpoint validates directory type and serves JSX preview", async () => {
+    const createRes = await fetch(`${baseUrl}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Preview API Session",
+        providerId: "openai",
+        modelId: "gpt-4o",
+        styleId: "bauhaus",
+        width: 800,
+        height: 600,
+      }),
+    });
+    const { session } = await createRes.json();
+
+    // Invalid directory type
+    const invalidTypeRes = await fetch(
+      `${baseUrl}/api/sessions/${session.id}/artifacts/invalidtype/file.png`,
+    );
+    expect(invalidTypeRes.status).toBe(400);
+
+    // Null byte in filename
+    const nullByteRes = await fetch(
+      `${baseUrl}/api/sessions/${session.id}/artifacts/images/file%00.png`,
+    );
+    expect(nullByteRes.status).toBe(400);
+
+    // Save and fetch JSX artifact
+    await sessionService.saveArtifact(
+      session.id,
+      "source",
+      "design-001-v001.jsx",
+      "export default function Test() { return <div>Test</div>; }",
+    );
+
+    const jsxRes = await fetch(
+      `${baseUrl}/api/sessions/${session.id}/artifacts/source/design-001-v001.jsx`,
+    );
+    expect(jsxRes.status).toBe(200);
+    expect(jsxRes.headers.get("Content-Type")).toContain("text/plain");
+    const text = await jsxRes.text();
+    expect(text).toContain("export default function Test");
+  });
 });
