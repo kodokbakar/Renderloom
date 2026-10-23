@@ -8,19 +8,55 @@ const CLOUD_METADATA_HOSTS: Record<string, true> = {
   metadata: true,
 };
 
+function extractIpv4(hostname: string): string | null {
+  const normalized = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized)) {
+    return normalized;
+  }
+
+  let rest: string | null = null;
+  if (normalized.startsWith("::ffff:")) {
+    rest = normalized.slice(7);
+  } else if (normalized.startsWith("0:0:0:0:0:ffff:")) {
+    rest = normalized.slice(14);
+  } else if (/^::[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(normalized)) {
+    rest = normalized.slice(2);
+  } else if (/^::\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(normalized)) {
+    rest = normalized.slice(2);
+  }
+
+  if (rest) {
+    if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(rest)) {
+      return rest;
+    }
+    const hexMatch = rest.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (hexMatch?.[1] && hexMatch[2]) {
+      const high = Number.parseInt(hexMatch[1], 16);
+      const low = Number.parseInt(hexMatch[2], 16);
+      return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+    }
+  }
+
+  return null;
+}
+
 function isPrivateIp(hostname: string): boolean {
+  const normalized = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const target = extractIpv4(normalized) ?? normalized;
+
   // Check IPv4 link-local (169.254.0.0/16)
-  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(target)) {
     return true;
   }
 
   // Check 10.0.0.0/8
-  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(target)) {
     return true;
   }
 
   // Check 172.16.0.0/12 (172.16 - 172.31)
-  const match172 = hostname.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
+  const match172 = target.match(/^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/);
   if (match172) {
     const secondOctet = Number(match172[1]);
     if (secondOctet >= 16 && secondOctet <= 31) {
@@ -29,7 +65,15 @@ function isPrivateIp(hostname: string): boolean {
   }
 
   // Check 192.168.0.0/16
-  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) {
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(target)) {
+    return true;
+  }
+
+  // IPv6 ULA (fc00::/7) or link-local (fe80::/10)
+  if (
+    /^(fc|fd)[0-9a-f]{2}:/i.test(normalized) ||
+    /^fe[89ab][0-9a-f]:/i.test(normalized)
+  ) {
     return true;
   }
 
@@ -37,14 +81,27 @@ function isPrivateIp(hostname: string): boolean {
 }
 
 function isLoopback(hostname: string): boolean {
-  const normalized = hostname.replace(/^\[|\]$/g, "");
-  return (
+  const normalized = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (
     normalized === "localhost" ||
     normalized === "127.0.0.1" ||
     normalized === "::1" ||
+    normalized === "::" ||
     normalized === "0.0.0.0" ||
+    normalized === "::0" ||
+    normalized === "0:0:0:0:0:0:0:0" ||
+    normalized === "0:0:0:0:0:0:0:1" ||
     normalized.startsWith("127.")
-  );
+  ) {
+    return true;
+  }
+
+  const ipv4 = extractIpv4(normalized);
+  if (ipv4 && (ipv4 === "0.0.0.0" || ipv4.startsWith("127."))) {
+    return true;
+  }
+
+  return false;
 }
 
 export function validateBaseUrl(url: string, allowCustom = false): string {
@@ -85,14 +142,19 @@ export function validateBaseUrl(url: string, allowCustom = false): string {
 
   const hostname = parsed.hostname.toLowerCase();
   const unbracketedHost = hostname.replace(/^\[|\]$/g, "");
+  const ipv4 = extractIpv4(unbracketedHost);
 
   // Cloud metadata protection (always forbidden)
   if (
     CLOUD_METADATA_HOSTS[hostname] ||
     CLOUD_METADATA_HOSTS[unbracketedHost] ||
+    (ipv4 && CLOUD_METADATA_HOSTS[ipv4]) ||
     hostname.endsWith(".metadata.google.internal") ||
     unbracketedHost === "fd00:ec2::254" ||
-    unbracketedHost.startsWith("169.254.")
+    unbracketedHost.startsWith("169.254.") ||
+    Boolean(ipv4?.startsWith("169.254.")) ||
+    unbracketedHost.startsWith("::ffff:a9fe:") ||
+    unbracketedHost.startsWith("::ffff:169.254.")
   ) {
     throw new ValidationError(
       "Access to cloud metadata endpoints is forbidden",
