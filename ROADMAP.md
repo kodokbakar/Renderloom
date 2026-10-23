@@ -273,19 +273,19 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Make the application local-first and able to restore past work.
 
-- [ ] Create the `Outputs/` directory when the app first needs it.
-- [ ] Implement session creation, list, read, rename, and safe deletion flows.
-- [ ] Generate a collision-safe directory slug from the session name, adding an ID or timestamp when necessary.
-- [ ] Create the per-session directories `images/`, `source/`, `svg/`, and `assets/`.
-- [ ] Implement atomic writing for JSON metadata and artifact files.
-- [ ] Save and load `session.json` with a schema version.
-- [ ] Save and load `conversation.json` without secret values.
-- [ ] Save the effective `prompt.txt` snapshot and safe generation configuration for reproducibility.
-- [ ] Add a recovery path for incomplete sessions, malformed metadata, and orphaned temporary files.
-- [ ] Add path traversal and symlink-boundary tests for all filesystem operations.
-- [ ] Ensure the API serves only artifacts belonging to an existing session and never arbitrary filesystem paths.
-- [ ] Add a session history view sorted by most recent activity.
-- [ ] Add session reopen behavior that restores candidate state, prompt context, dimensions, and artifact previews.
+- [x] Create the `Outputs/` directory when the app first needs it.
+- [x] Implement session creation, list, read, rename, and safe deletion flows.
+- [x] Generate a collision-safe directory slug from the session name, adding an ID or timestamp when necessary.
+- [x] Create the per-session directories `images/`, `source/`, `svg/`, and `assets/`.
+- [x] Implement atomic writing for JSON metadata and artifact files.
+- [x] Save and load `session.json` with a schema version.
+- [x] Save and load `conversation.json` without secret values.
+- [x] Save the effective `prompt.txt` snapshot and safe generation configuration for reproducibility.
+- [x] Add a recovery path for incomplete sessions, malformed metadata, and orphaned temporary files.
+- [x] Add path traversal and symlink-boundary tests for all filesystem operations.
+- [x] Ensure the API serves only artifacts belonging to an existing session and never arbitrary filesystem paths.
+- [x] Add a session history view sorted by most recent activity.
+- [x] Add session reopen behavior that restores candidate state, prompt context, dimensions, and artifact previews.
 
 **Acceptance criteria**
 

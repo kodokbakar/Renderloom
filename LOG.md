@@ -21,3 +21,13 @@
 - Added static JSX fixture `tests/fixtures/sample-card.jsx` and rendered artifacts `sample-card.svg` and `sample-card.png`.
 - Added test suites across `tests/renderer/` (validator, interpreter, assets, render): 75 passing tests (100% pass rate).
 - Verified: `bun test` (75 passing tests), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).
+
+### Phase 2: Local Sessions and Filesystem Persistence
+- Defined versioned session domain contracts (`Session`, `SessionSummary`, `FullSession`, `Conversation`, `GenerationConfig`, `SESSION_SCHEMA_VERSION = 1`) and `SessionError` error hierarchy (`SESSION_NOT_FOUND`, `SESSION_ALREADY_EXISTS`, `INVALID_PATH`, `INVALID_SESSION_NAME`, `CORRUPT_SESSION`, `ARTIFACT_NOT_FOUND`, `IMMUTABLE_ARTIFACT`).
+- Implemented secret redaction utilities in `src/security/redact.ts`: regex scanners detecting OpenAI, Anthropic, Google AI, and Bearer credentials; recursive object sanitizer; `assertNoSecrets` guard preventing secrets from reaching disk.
+- Implemented slug generation and sanitization in `src/sessions/slug.ts`: converts arbitrary names to lowercase ASCII slugs, handles hostile/empty inputs with safe defaults, resolves collisions via incremental/hash suffixes.
+- Implemented path security guards in `src/sessions/paths.ts`: blocks directory traversal (`..`, `\0`, slashes), checks canonical boundaries and symlink escapes against `Outputs/` root.
+- Implemented atomic writes in `src/sessions/atomic.ts`: writes via temporary `.<name>.<uuid>.tmp` files with atomic rename and cleanup on failure; temp file orphan sweep.
+- Implemented `SessionService` in `src/sessions/service.ts`: session CRUD, reopen, safe deletion, artifact management across `images/`, `source/`, `svg/`, and `assets/`, immutable version protection, and corrupt metadata isolation in `listSessions()`.
+- Implemented Bun HTTP API routes in `src/server/routes/sessions.ts` and `src/server/server.ts`: session listing, creation, reopen, rename, deletion, and controlled artifact streaming with MIME headers (`image/png`, `image/svg+xml`, `text/plain`).
+- Added end-to-end integration and security test suites across `tests/sessions/` and `tests/server/`.
