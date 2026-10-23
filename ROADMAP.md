@@ -324,21 +324,21 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Turn user intent, custom instructions, style constraints, and output settings into a consistent LLM request.
 
-- [ ] Create an editable project-level `prompt.txt` with clear defaults and comments/documentation outside the prompt if necessary.
-- [ ] Define immutable technical instructions separate from `prompt.txt`; the user's custom prompt must not disable code validation or security rules.
-- [ ] Snapshot the effective `prompt.txt` content used for every session/generation.
-- [ ] Define a versioned style-preset schema, including ID, display name, design principles, palette, typography guidance, spacing/layout rules, allowed effects, and patterns to avoid.
-- [ ] Add built-in presets for Bauhaus, Swiss International Style, Minimal, Editorial, and Brutalist visual design.
-- [ ] Add a style picker with a short description and visual sample where practical.
-- [ ] Validate style preset files before exposing them to the generation system.
-- [ ] Make the selected style's rules concrete and actionable rather than passing only its name to the LLM.
-- [ ] Add request fields for prompt, candidate count, width, height, aspect ratio, style ID, provider ID, and model ID.
-- [ ] Support aspect-ratio presets such as 1:1, 4:5, 3:2, and 16:9, plus custom dimensions.
-- [ ] Derive and display the resolved dimensions when the user selects an aspect ratio.
-- [ ] Validate maximum width, height, total pixel count, candidate count, prompt length, and asset count to prevent excessive resource usage.
-- [ ] Create a structured output contract requiring one independently identified candidate source per requested candidate.
-- [ ] Request concise design metadata separately from source code where possible, such as a candidate label and short rationale.
-- [ ] Test the composed prompt with fixture responses before involving the renderer.
+- [x] Create an editable project-level `prompt.txt` with clear defaults and comments/documentation outside the prompt if necessary.
+- [x] Define immutable technical instructions separate from `prompt.txt`; the user's custom prompt must not disable code validation or security rules.
+- [x] Snapshot the effective `prompt.txt` content used for every session/generation.
+- [x] Define a versioned style-preset schema, including ID, display name, design principles, palette, typography guidance, spacing/layout rules, allowed effects, and patterns to avoid.
+- [x] Add built-in presets for Bauhaus, Swiss International Style, Minimal, Editorial, and Brutalist visual design.
+- [x] Add a style picker with a short description and visual sample where practical.
+- [x] Validate style preset files before exposing them to the generation system.
+- [x] Make the selected style's rules concrete and actionable rather than passing only its name to the LLM.
+- [x] Add request fields for prompt, candidate count, width, height, aspect ratio, style ID, provider ID, and model ID.
+- [x] Support aspect-ratio presets such as 1:1, 4:5, 3:2, and 16:9, plus custom dimensions.
+- [x] Derive and display the resolved dimensions when the user selects an aspect ratio.
+- [x] Validate maximum width, height, total pixel count, candidate count, prompt length, and asset count to prevent excessive resource usage.
+- [x] Create a structured output contract requiring one independently identified candidate source per requested candidate.
+- [x] Request concise design metadata separately from source code where possible, such as a candidate label and short rationale.
+- [x] Test the composed prompt with fixture responses before involving the renderer.
 
 **Acceptance criteria**
 
