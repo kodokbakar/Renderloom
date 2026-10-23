@@ -225,16 +225,16 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Establish a clear, testable project base before implementing the full UI.
 
-- [ ] Create the Bun + TypeScript project and lockfile.
-- [ ] Add strict TypeScript settings and lint/format commands.
-- [ ] Create the initial React frontend scaffold.
-- [ ] Establish separate frontend, local API, renderer, LLM, prompt, session, and shared-contract modules.
-- [ ] Create `ROADMAP.md`, `LOG.md`, and a starter `README.md`.
-- [ ] Add a safe default `prompt.txt`.
-- [ ] Define versioned TypeScript interfaces for sessions, candidates, versions, generation requests, and errors.
-- [ ] Add runtime validation for all requests entering the local API.
-- [ ] Document supported runtime/platform assumptions and local startup commands.
-- [ ] Add `.gitignore` rules for runtime secrets, local environment files, temporary render data, test outputs, and user-generated `Outputs/` content when appropriate. Provide a separate safe example session only if needed for screenshots/tests.
+- [x] Create the Bun + TypeScript project and lockfile.
+- [x] Add strict TypeScript settings and lint/format commands.
+- [x] Create the initial React frontend scaffold.
+- [x] Establish separate frontend, local API, renderer, LLM, prompt, session, and shared-contract modules.
+- [x] Create `ROADMAP.md`, `LOG.md`, and a starter `README.md`.
+- [x] Add a safe default `prompt.txt`.
+- [x] Define versioned TypeScript interfaces for sessions, candidates, versions, generation requests, and errors.
+- [x] Add runtime validation for all requests entering the local API.
+- [x] Document supported runtime/platform assumptions and local startup commands.
+- [x] Add `.gitignore` rules for runtime secrets, local environment files, temporary render data, test outputs, and user-generated `Outputs/` content when appropriate. Provide a separate safe example session only if needed for screenshots/tests.
 
 **Acceptance criteria**
 
