@@ -13,6 +13,7 @@ import {
   SessionError,
   type SessionSummary,
 } from "../domain";
+import { loadBasePrompt } from "../prompts/loader";
 import {
   atomicWriteFile,
   atomicWriteJson,
@@ -143,6 +144,7 @@ export class SessionService {
   async createSession(
     data: CreateSessionRequest,
     initialPrompt = "",
+    basePromptSnapshot?: string,
   ): Promise<Session> {
     return this.withCreationLock(async () => {
       await this.ensureBaseDir();
@@ -221,9 +223,16 @@ export class SessionService {
           path.join(sessionDir, "conversation.json"),
           conversation,
         );
+        const effectiveSnapshot =
+          basePromptSnapshot !== undefined
+            ? basePromptSnapshot
+            : initialPrompt.trim() !== ""
+              ? initialPrompt.trim()
+              : await loadBasePrompt();
+
         await atomicWriteFile(
           path.join(sessionDir, "prompt.snapshot.txt"),
-          initialPrompt.trim(),
+          effectiveSnapshot,
         );
         await atomicWriteJson(
           path.join(sessionDir, "generation-config.json"),
@@ -432,5 +441,16 @@ export class SessionService {
       filePath: artifactPath,
       mimeType: getMimeType(filename),
     };
+  }
+
+  async savePromptSnapshot(
+    idOrSlug: string,
+    snapshotContent: string,
+  ): Promise<void> {
+    const { dir } = await this.resolveSessionDir(idOrSlug);
+    await atomicWriteFile(
+      path.join(dir, "prompt.snapshot.txt"),
+      snapshotContent,
+    );
   }
 }

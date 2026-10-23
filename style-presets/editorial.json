@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "editorial",
+  "name": "Editorial",
+  "description": "Sophisticated print-publishing aesthetic featuring warm tactile surfaces, literary typography, elegant bylines, and graceful column pacing.",
+  "designPrinciples": [
+    "Literary authority and high-craft print sensibility",
+    "Warm, tactile cream and parchment background evoking fine paper stock",
+    "Sophisticated contrast between deep charcoal ink and rich wine accents",
+    "Deliberate editorial pacing with bylines, pull quotes, and folio markers"
+  ],
+  "palette": {
+    "background": "#FAF7F2",
+    "foreground": "#262626",
+    "primary": "#171717",
+    "secondary": "#525252",
+    "accent": "#881337",
+    "muted": "#78716C",
+    "border": "#E7E5E4"
+  },
+  "typography": {
+    "fontFamily": "Georgia, Cambria, 'Times New Roman', serif",
+    "headingWeight": 700,
+    "bodyWeight": 400,
+    "scale": ["52px", "32px", "22px", "16px", "13px"],
+    "guidelines": [
+      "Serif display headlines with natural line breaks",
+      "Include a small uppercase tracking kicker above main headlines",
+      "Distinguish bylines and dates in muted sans-serif or italic serif"
+    ]
+  },
+  "layout": {
+    "structure": "Magazine-spread columnar layout with feature header and editorial columns",
+    "spacing": "Balanced editorial margins (40px) with comfortable reading line lengths",
+    "alignment": "Refined justify or flush-left editorial text blocks",
+    "rules": [
+      "Include a headline section with kicker tag, main title, and subtitle",
+      "Use delicate horizontal divider rules (#E7E5E4) to segment story sections",
+      "Incorporate a highlighted pull-quote or stat callout with wine #881337 accents"
+    ]
+  },
+  "allowedEffects": [
+    "delicate 1px border frames",
+    "pull quotes with enlarged quote marks",
+    "small-caps kicker badges"
+  ],
+  "patternsToAvoid": [
+    "Neon or ultra-saturated colors",
+    "Aggressive heavy drop shadows",
+    "Industrial raw monospace typography for primary content",
+    "Chaotic or overlapping visual elements"
+  ],
+  "visualSample": {
+    "background": "#FAF7F2",
+    "foreground": "#262626",
+    "accent": "#881337",
+    "previewText": "THE CHRONICLE"
+  }
+}

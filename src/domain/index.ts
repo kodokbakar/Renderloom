@@ -4,3 +4,6 @@ export * from "./version";
 export * from "./request";
 export * from "./errors";
 export * from "./provider";
+export * from "./style";
+export * from "./dimensions";
+export * from "./prompt";

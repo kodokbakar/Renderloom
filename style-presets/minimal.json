@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "minimal",
+  "name": "Minimal",
+  "description": "Radical reduction, refined typographic hierarchy, quiet monochromatic palette, and supreme reliance on breath and whitespace.",
+  "designPrinciples": [
+    "Subtractive clarity: eliminate any element that does not convey meaning",
+    "Extreme economy of line, color, and texture",
+    "Generous expanse of negative space that commands focus",
+    "Restrained micro-accent color used sparingly for focal contrast"
+  ],
+  "palette": {
+    "background": "#FFFFFF",
+    "foreground": "#0F172A",
+    "primary": "#0F172A",
+    "secondary": "#64748B",
+    "accent": "#0284C7",
+    "muted": "#94A3B8",
+    "border": "#F1F5F9"
+  },
+  "typography": {
+    "fontFamily": "system-ui, -apple-system, sans-serif",
+    "headingWeight": 600,
+    "bodyWeight": 400,
+    "scale": ["40px", "28px", "18px", "14px"],
+    "guidelines": [
+      "Moderate contrast between heading and body",
+      "Generous letter-spacing on small uppercase metadata tags",
+      "Keep text density light and scannable"
+    ]
+  },
+  "layout": {
+    "structure": "Single-axis centered or elegant left-aligned stack with vast breathing room",
+    "spacing": "Vast margins (64px+) and uncrowded vertical flow",
+    "alignment": "Strict vertical axis alignment with subtle horizontal groupings",
+    "rules": [
+      "Never crowd containers; maintain generous inner padding (at least 48px)",
+      "Rely on subtle font weight and color step-down rather than boxes or lines",
+      "Keep total distinct visual elements below 6"
+    ]
+  },
+  "allowedEffects": [
+    "subtle hairline borders (#F1F5F9)",
+    "light background tint tags",
+    "letter-spacing tracking"
+  ],
+  "patternsToAvoid": [
+    "Decorative backgrounds and busy patterns",
+    "Heavy borders or prominent boxes",
+    "Multiple competing bright accent colors",
+    "Dense walls of text or tight element grids"
+  ],
+  "visualSample": {
+    "background": "#FFFFFF",
+    "foreground": "#0F172A",
+    "accent": "#0284C7",
+    "previewText": "LESS"
+  }
+}

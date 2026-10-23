@@ -58,3 +58,38 @@
   - `tests/server/llm-api.test.ts` (full HTTP API integration test).
   - `tests/llm/sentinel-leak.test.ts` (sentinel fake key proof: zero leak across error messages, JSON responses, and `Outputs/` directory).
 - Verified: `bun test` (235 passing tests across 28 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).
+
+### Phase 4: Prompt Composer and Style Presets
+- Defined versioned style domain contracts (`StylePreset`, `StylePresetSummary`, `VisualSample`, `StylePalette`, `TypographyGuidance`, `LayoutGuidance`, `STYLE_SCHEMA_VERSION = 1`) in `src/domain/style.ts`.
+- Defined dimension domain contracts and resource limit constants in `src/domain/dimensions.ts` (`MIN_DIMENSION = 64`, `MAX_DIMENSION = 4096`, `MAX_PIXELS = 4_194_304`, `MIN_CANDIDATE_COUNT = 1`, `MAX_CANDIDATE_COUNT = 4`, `MAX_PROMPT_LENGTH = 4000`, `MAX_ASSET_COUNT = 10`, aspect ratio presets `1:1`, `4:5`, `3:2`, `16:9`, `custom`).
+- Defined prompt contracts in `src/domain/prompt.ts` (`CandidateOutputContract`, `GenerationOutputEnvelope`, `ComposedPrompt`, `ComposePromptOptions`).
+- Implemented Zod schema validation in `src/styles/schema.ts` (`StylePresetSchema`, `StylePaletteSchema`, `TypographySchema`, `LayoutSchema`, `VisualSampleSchema`, `validateStylePreset`).
+- Created 5 built-in style presets in `style-presets/`:
+  - `bauhaus.json`: Primary colors, functional geometry, asymmetric balance, sans-serif typography.
+  - `swiss.json`: Objective clarity, mathematical grid, generous white space, crimson accent.
+  - `minimal.json`: Subtractive clarity, refined monochrome palette, expansive breathing room.
+  - `editorial.json`: Warm parchment tone, literary serif typography, pull quotes, bylines.
+  - `brutalist.json`: Stark black/white boundaries, heavy borders, monospace font, solid offset drop shadows.
+- Implemented `StyleRegistry` in `src/styles/registry.ts`: loads, caches, and validates style presets from filesystem; formats concrete, actionable LLM instructions.
+- Implemented aspect-ratio resolution and dimension bounds validation in `src/styles/dimensions.ts`.
+- Implemented immutable technical system constraints in `src/prompts/technical-constraints.ts`: root container inline sizing, strict Satori flexbox layout allowlist, prohibited tags and dynamic JavaScript guards, local-first asset rules, and explicit non-override directive.
+- Implemented base prompt loader and snapshotting in `src/prompts/loader.ts` and updated `SessionService` in `src/sessions/service.ts` to capture effective prompt snapshots per session.
+- Implemented structured output contract and parser in `src/prompts/contract.ts`: enforces JSON candidate envelope with `candidateIndex`, `label`, `rationale`, and `jsx`; parses direct JSON and markdown-fenced outputs.
+- Implemented `composePrompt` in `src/prompts/composer.ts`: combines base prompt, technical rules, style preset rules, output envelope, and user instructions with prompt injection resistance.
+- Implemented Bun HTTP API routes and wired into `src/server/server.ts`:
+  - `GET /api/styles`: list style preset summaries.
+  - `GET /api/styles/:id`: retrieve full style preset details (404 on missing).
+  - `POST /api/dimensions/resolve`: resolve aspect ratio to exact pixel dimensions with bounds validation.
+  - `GET /api/prompts/default`: retrieve default base system prompt.
+  - `POST /api/prompts/compose`: compose complete system and user prompts with style and dimension rules.
+  - `POST /api/validate-generation`: updated with style registry and resource bounds checks.
+- Added comprehensive unit and integration test suites:
+  - `tests/styles/schema.test.ts` (preset validation, hex rules, version checks).
+  - `tests/styles/registry.test.ts` (preset discovery, formatted instructions, error handling).
+  - `tests/styles/dimensions.test.ts` (preset resolution, custom dimensions, 4MP and bounds checks).
+  - `tests/prompts/technical-constraints.test.ts` (Satori flexbox rules, tag allowlists, security guards).
+  - `tests/prompts/loader.test.ts` (prompt loader, missing fallbacks, snapshot immutability).
+  - `tests/prompts/contract.test.ts` (JSON parsing, markdown fences, multi-candidate normalization).
+  - `tests/prompts/composer.test.ts` (full prompt composition, injection resistance, Satori AST validator fixture pipeline).
+  - `tests/server/styles-prompts-api.test.ts` (HTTP endpoints, 400 on bounds, 404 on missing styles).
+- Verified: `bun test` (314 passing tests across 36 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).

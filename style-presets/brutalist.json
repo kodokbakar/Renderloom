@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "brutalist",
+  "name": "Brutalist",
+  "description": "Raw, anti-decorative neo-brutalism defined by stark high-contrast boundaries, thick black borders, hard offset drop shadows, and monospace utility.",
+  "designPrinciples": [
+    "Unapologetic raw functionality and anti-decorative honesty",
+    "Extreme contrast with harsh pure black and white surfaces",
+    "Acid green / neon high-voltage accent punctuation",
+    "Tactile physical presence via thick ink borders and solid offset shadows"
+  ],
+  "palette": {
+    "background": "#FFFFFF",
+    "foreground": "#000000",
+    "primary": "#000000",
+    "secondary": "#22C55E",
+    "accent": "#22C55E",
+    "muted": "#525252",
+    "border": "#000000"
+  },
+  "typography": {
+    "fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "headingWeight": 900,
+    "bodyWeight": 700,
+    "scale": ["44px", "28px", "18px", "14px"],
+    "guidelines": [
+      "Monospace or ultra-bold industrial grotesque headings",
+      "ALL-CAPS headings with tight tracking",
+      "Data-label styling for subtext (e.g., [SYSTEM_STATUS: OK])"
+    ]
+  },
+  "layout": {
+    "structure": "Tightly packed modular grid with thick separating borders and sharp edges",
+    "spacing": "Dense, utilitarian padding (16px to 24px) maximizing information density",
+    "alignment": "Strict box-bound alignment with visible structural scaffolding",
+    "rules": [
+      "Every major element container must feature a 3px to 5px solid #000000 border",
+      "Use hard offset shadows (e.g., 4px 4px 0px #000000) with zero blur radius",
+      "Highlight interactive or important tags in high-visibility neon green #22C55E",
+      "Zero border-radius anywhere: all corners must be completely sharp (0px)"
+    ]
+  },
+  "allowedEffects": [
+    "thick solid borders (3px-5px)",
+    "hard non-blurred offset drop shadows (4px 4px 0 #000)",
+    "high-contrast inverted tag badges"
+  ],
+  "patternsToAvoid": [
+    "Rounded corners (border-radius > 0)",
+    "Soft blurred box-shadows or gradients",
+    "Faded or low-contrast pastel tones",
+    "Ethereal floating elements without rigid border enclosures"
+  ],
+  "visualSample": {
+    "background": "#FFFFFF",
+    "foreground": "#000000",
+    "accent": "#22C55E",
+    "previewText": "RAW_MODE"
+  }
+}
