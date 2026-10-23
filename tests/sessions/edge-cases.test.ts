@@ -126,6 +126,54 @@ describe("Session Edge Cases and Boundary Guards", () => {
       const full = await service.getSession(sess.id);
       expect(full.artifacts.images.length).toBe(8);
     });
+
+    test("high-concurrency creation with 20 identical names all succeed with unique slugs", async () => {
+      const duplicateName = "Stress Concurrent Poster";
+      const count = 20;
+      const tasks = Array.from({ length: count }, () =>
+        service.createSession({ ...baseRequest, name: duplicateName }),
+      );
+
+      const results = await Promise.all(tasks);
+      expect(results.length).toBe(count);
+
+      const slugs = new Set(results.map((s) => s.slug));
+      expect(slugs.size).toBe(count);
+
+      const ids = new Set(results.map((s) => s.id));
+      expect(ids.size).toBe(count);
+
+      for (const s of results) {
+        const sessionFile = path.join(tempOutputs, s.slug, "session.json");
+        expect(existsSync(sessionFile)).toBe(true);
+        const parsed = JSON.parse(readFileSync(sessionFile, "utf-8"));
+        expect(parsed.id).toBe(s.id);
+        expect(parsed.name).toBe(duplicateName);
+      }
+    });
+
+    test("concurrent creations interleaved with concurrent listSessions do not crash or corrupt", async () => {
+      const createTasks = Array.from({ length: 10 }, (_, i) =>
+        service.createSession({
+          ...baseRequest,
+          name: `Interleaved Session ${i}`,
+        }),
+      );
+      const listTasks = Array.from({ length: 10 }, () =>
+        service.listSessions(),
+      );
+
+      const [created, listed] = await Promise.all([
+        Promise.all(createTasks),
+        Promise.all(listTasks),
+      ]);
+
+      expect(created.length).toBe(10);
+      expect(listed.length).toBe(10);
+      for (const list of listed) {
+        expect(Array.isArray(list)).toBe(true);
+      }
+    });
   });
 
   describe("Symlink & Path Boundary Attacks", () => {
