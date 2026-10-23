@@ -69,8 +69,23 @@ describe("Core Renderer Engine", () => {
     await expect(
       render(jsx, { width: Number.NaN, height: 100 }),
     ).rejects.toThrow(RenderError);
+    await expect(
+      render(jsx, { width: Number.POSITIVE_INFINITY, height: 100 }),
+    ).rejects.toThrow(RenderError);
+    await expect(
+      render(jsx, { width: 100, height: Number.NEGATIVE_INFINITY }),
+    ).rejects.toThrow(RenderError);
   });
 
+  test("rounds floating-point dimensions cleanly", async () => {
+    const jsx = `<div style={{ display: "flex", width: "100%", height: "100%" }}>Rounded</div>`;
+    const result = await render(jsx, { width: 200.4, height: 100.6 });
+    expect(result.width).toBe(200);
+    expect(result.height).toBe(101);
+    const dims = readPngDimensions(result.png);
+    expect(dims.width).toBe(200);
+    expect(dims.height).toBe(101);
+  });
   test("returns structured RenderError for malicious syntax without evaluating", async () => {
     const maliciousSources = [
       `<div onClick={() => eval("alert(1)")}>Click</div>`,
@@ -137,6 +152,52 @@ describe("Core Renderer Engine", () => {
       expect(() => verifyPngDimensions(validHeader, 500, 300)).toThrow(
         RenderError,
       );
+    });
+
+    test("throws RENDER_FAILED on buffer shorter than 24 bytes", () => {
+      const tooShort = Buffer.alloc(20);
+      expect(() => readPngDimensions(tooShort)).toThrow(RenderError);
+      try {
+        readPngDimensions(tooShort);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("RENDER_FAILED");
+        expect((err as RenderError).message).toContain("too small");
+      }
+    });
+
+    test("throws RENDER_FAILED on missing or incorrect IHDR chunk", () => {
+      const badChunk = Buffer.alloc(24);
+      badChunk.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+      badChunk.set([0x00, 0x00, 0x00, 0x0d], 8);
+      badChunk.set([0x49, 0x44, 0x41, 0x54], 12); // IDAT instead of IHDR
+      expect(() => readPngDimensions(badChunk)).toThrow(RenderError);
+      try {
+        readPngDimensions(badChunk);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("RENDER_FAILED");
+        expect((err as RenderError).message).toContain(
+          "missing or misplaced IHDR chunk",
+        );
+      }
+    });
+
+    test("throws RENDER_FAILED on zero dimensions in IHDR chunk", () => {
+      const zeroDim = Buffer.alloc(24);
+      zeroDim.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+      zeroDim.set([0x00, 0x00, 0x00, 0x0d], 8);
+      zeroDim.set([0x49, 0x48, 0x44, 0x52], 12);
+      zeroDim.writeUInt32BE(0, 16);
+      zeroDim.writeUInt32BE(100, 20);
+
+      expect(() => readPngDimensions(zeroDim)).toThrow(RenderError);
+      try {
+        readPngDimensions(zeroDim);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("RENDER_FAILED");
+        expect((err as RenderError).message).toContain(
+          "dimensions cannot be zero",
+        );
+      }
     });
   });
 });

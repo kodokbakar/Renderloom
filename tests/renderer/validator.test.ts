@@ -347,4 +347,174 @@ describe("Restricted JSX Validator", () => {
       expect(validated.rootElement).toBeDefined();
     });
   });
+
+  describe("Negative Security: eval, new Function, and dynamic imports", () => {
+    test("rejects new Function call in children", () => {
+      const code = "<div>{new Function('return 1')()}</div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects uninvoked new Function in children", () => {
+      const code = "<div>{new Function('return 1')}</div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("UNSUPPORTED_SYNTAX");
+      }
+    });
+
+    test("rejects new Function in attributes", () => {
+      const code = "<div id={new Function('return 1')()}>Hello</div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects new Function in styles", () => {
+      const code =
+        "<div style={{ color: new Function('return 1')() }}>Hello</div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects dynamic import in children", () => {
+      const code = "<div>{import('./evil.js')}</div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects dynamic import in attributes", () => {
+      const code = "<div id={import('fs')}>Hello</div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects top-level dynamic import call", () => {
+      const code = "import('./evil.js');";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("UNSUPPORTED_SYNTAX");
+      }
+    });
+
+    test("rejects eval in children", () => {
+      const code = "<div>{eval('secret')}</div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects top-level eval call", () => {
+      const code = "eval('secret');";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("UNSUPPORTED_SYNTAX");
+      }
+    });
+  });
+
+  describe("Nested and Complex Attack Vectors", () => {
+    test("rejects deeply nested script tags", () => {
+      const code = "<div><div><div><script>alert(1)</script></div></div></div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects object, embed, link, meta tags", () => {
+      const tags = ["object", "embed", "link", "meta"];
+      for (const tag of tags) {
+        const code = `<div><${tag} /></div>`;
+        expect(() => validateJsx(code)).toThrow(RenderError);
+        try {
+          validateJsx(code);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+        }
+      }
+    });
+
+    test("rejects deeply nested event handlers", () => {
+      const code =
+        "<div><div><span onmouseover='evil()'>Hover</span></div></div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects deeply nested spread attributes", () => {
+      const code = "<div><div><span {...props} /></div></div>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+      try {
+        validateJsx(code);
+      } catch (err) {
+        expect((err as RenderError).code).toBe("DANGEROUS_CODE_DETECTED");
+      }
+    });
+
+    test("rejects template literal substitutions in attributes and children", () => {
+      expect(() =>
+        validateJsx("<div id={`${1 + 1}`}>Interpolated</div>"),
+      ).toThrow(RenderError);
+      expect(() => validateJsx("<div>{`${process.env.SECRET}`}</div>")).toThrow(
+        RenderError,
+      );
+    });
+
+    test("rejects dangerous URI schemes in img src", () => {
+      const dangerousSrcs = [
+        "javascript:alert(1)",
+        "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+        "file:///etc/passwd",
+      ];
+      for (const src of dangerousSrcs) {
+        const code = `<div><img src="${src}" /></div>`;
+        expect(() => validateJsx(code)).toThrow(RenderError);
+        try {
+          validateJsx(code);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNTRUSTED_REMOTE_ASSET");
+        }
+      }
+    });
+
+    test("rejects malformed JSX with mismatched tags", () => {
+      const code = "<div><span>Mismatched</div></span>";
+      expect(() => validateJsx(code)).toThrow(RenderError);
+    });
+  });
 });
