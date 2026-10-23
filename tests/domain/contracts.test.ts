@@ -3,6 +3,7 @@ import {
   type Candidate,
   type CandidateState,
   type GenerationRequest,
+  RenderError,
   type RenderloomError,
   type Session,
   ValidationError,
@@ -45,5 +46,17 @@ describe("Domain Contracts", () => {
     expect(err.code).toBe("VALIDATION_ERROR");
     expect(err.message).toBe("invalid prompt");
     expect(err.details).toEqual({ field: "prompt" });
+  });
+
+  test("RenderError instantiates with code, message, and details", () => {
+    const err = new RenderError(
+      "UNSUPPORTED_SYNTAX",
+      "Unsupported tag <marquee>",
+      { tag: "marquee" },
+    );
+    expect(err.name).toBe("RenderError");
+    expect(err.code).toBe("UNSUPPORTED_SYNTAX");
+    expect(err.message).toBe("Unsupported tag <marquee>");
+    expect(err.details).toEqual({ tag: "marquee" });
   });
 });

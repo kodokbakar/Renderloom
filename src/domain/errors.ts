@@ -14,3 +14,20 @@ export class ValidationError extends Error {
     this.name = "ValidationError";
   }
 }
+
+export type RenderErrorCode =
+  | "UNSUPPORTED_SYNTAX"
+  | "DANGEROUS_CODE_DETECTED"
+  | "UNTRUSTED_REMOTE_ASSET"
+  | "RENDER_FAILED";
+
+export class RenderError extends Error {
+  constructor(
+    public readonly code: RenderErrorCode,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "RenderError";
+  }
+}
