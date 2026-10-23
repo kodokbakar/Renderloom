@@ -17,4 +17,5 @@ export interface CreateSessionRequest {
   styleId: string;
   width: number;
   height: number;
+  initialPrompt?: string;
 }
