@@ -247,19 +247,19 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Prove the core code-to-image pipeline independently of LLM integration.
 
-- [ ] Install and pin compatible versions of `satori` and `@resvg/resvg-js`.
-- [ ] Build a small static JSX fixture that uses only supported Satori elements and styles.
-- [ ] Parse JSX with an AST parser; reject syntax outside the MVP allowlist.
-- [ ] Define the first allowed element set, such as `div`, `span`, `p`, and `img`, plus a documented set of supported properties.
-- [ ] Define safe literal-only value types for text, numbers, colors, dimensions, and inline style values.
-- [ ] Reject imports, exports other than the agreed source wrapper, function calls, arbitrary identifiers, event handlers, script/style injection, dynamic expressions, JSX spreads, and unapproved attributes.
-- [ ] Implement a trusted AST-to-element interpreter that creates the element structure supplied to Satori without evaluating the source as JavaScript.
-- [ ] Configure fonts explicitly and write down licensing and bundling requirements for each shipped font.
-- [ ] Define an approved asset resolver for local session assets; block automatic fetching of arbitrary URLs.
-- [ ] Render the fixture to SVG and then PNG.
-- [ ] Verify final image width and height against the requested dimensions.
-- [ ] Save the fixture source, SVG, and PNG as test artifacts.
-- [ ] Add negative tests for malicious or unsupported JSX syntax.
+- [x] Install and pin compatible versions of `satori` and `@resvg/resvg-js`.
+- [x] Build a small static JSX fixture that uses only supported Satori elements and styles.
+- [x] Parse JSX with an AST parser; reject syntax outside the MVP allowlist.
+- [x] Define the first allowed element set, such as `div`, `span`, `p`, and `img`, plus a documented set of supported properties.
+- [x] Define safe literal-only value types for text, numbers, colors, dimensions, and inline style values.
+- [x] Reject imports, exports other than the agreed source wrapper, function calls, arbitrary identifiers, event handlers, script/style injection, dynamic expressions, JSX spreads, and unapproved attributes.
+- [x] Implement a trusted AST-to-element interpreter that creates the element structure supplied to Satori without evaluating the source as JavaScript.
+- [x] Configure fonts explicitly and write down licensing and bundling requirements for each shipped font.
+- [x] Define an approved asset resolver for local session assets; block automatic fetching of arbitrary URLs.
+- [x] Render the fixture to SVG and then PNG.
+- [x] Verify final image width and height against the requested dimensions.
+- [x] Save the fixture source, SVG, and PNG as test artifacts.
+- [x] Add negative tests for malicious or unsupported JSX syntax.
 
 **Acceptance criteria**
 
