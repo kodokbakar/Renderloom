@@ -31,3 +31,23 @@ export class RenderError extends Error {
     this.name = "RenderError";
   }
 }
+
+export type SessionErrorCode =
+  | "SESSION_NOT_FOUND"
+  | "SESSION_ALREADY_EXISTS"
+  | "INVALID_PATH"
+  | "INVALID_SESSION_NAME"
+  | "CORRUPT_SESSION"
+  | "ARTIFACT_NOT_FOUND"
+  | "IMMUTABLE_ARTIFACT";
+
+export class SessionError extends Error {
+  constructor(
+    public readonly code: SessionErrorCode,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "SessionError";
+  }
+}
