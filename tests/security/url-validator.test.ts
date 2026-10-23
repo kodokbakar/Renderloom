@@ -115,10 +115,37 @@ describe("Base URL Security Validator", () => {
     expect(() =>
       validateBaseUrl("http://[::ffff:a9fe:a9fe]/latest/meta-data", true),
     ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl(
+        "http://[0:0:0:0:0:ffff:169.254.169.254]/latest/meta-data",
+        true,
+      ),
+    ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl("http://[::169.254.169.254]/latest/meta-data", true),
+    ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl("http://[::a9fe:a9fe]/latest/meta-data", true),
+    ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl("http://[::ffff:100.100.100.200]/latest/meta-data", true),
+    ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl(
+        "http://test.metadata.google.internal/computeMetadata/v1/",
+        true,
+      ),
+    ).toThrow(ValidationError);
   });
 
-  test("rejects IPv6 unspecified and IPv6-mapped private addresses when allowCustom is false", () => {
+  test("rejects IPv6 unspecified, ULA, link-local, and IPv6-mapped private addresses when allowCustom is false", () => {
     expect(() => validateBaseUrl("http://[::]:8000", false)).toThrow(
+      ValidationError,
+    );
+    expect(() => validateBaseUrl("http://[::0]:8000", false)).toThrow(
+      ValidationError,
+    );
+    expect(() => validateBaseUrl("http://0.0.0.0:8000", false)).toThrow(
       ValidationError,
     );
     expect(() =>
@@ -127,5 +154,36 @@ describe("Base URL Security Validator", () => {
     expect(() =>
       validateBaseUrl("http://[::ffff:10.0.0.1]:8000", false),
     ).toThrow(ValidationError);
+    expect(() =>
+      validateBaseUrl("http://[::ffff:172.20.0.1]:8000", false),
+    ).toThrow(ValidationError);
+    expect(() => validateBaseUrl("http://[::ffff:ac10:1]:8000", false)).toThrow(
+      ValidationError,
+    );
+    expect(() =>
+      validateBaseUrl("http://[::ffff:192.168.1.1]:8000", false),
+    ).toThrow(ValidationError);
+    expect(() => validateBaseUrl("http://[fe80::1]:8000", false)).toThrow(
+      ValidationError,
+    );
+    expect(() => validateBaseUrl("http://[fd00::1]:8000", false)).toThrow(
+      ValidationError,
+    );
+    expect(() => validateBaseUrl("http://172.16.0.1:8000", false)).toThrow(
+      ValidationError,
+    );
+    expect(() => validateBaseUrl("http://172.31.255.254:8000", false)).toThrow(
+      ValidationError,
+    );
+  });
+
+  test("allows loopback variants when allowCustom is true", () => {
+    expect(validateBaseUrl("http://0.0.0.0:8000", true)).toBe(
+      "http://0.0.0.0:8000",
+    );
+    expect(validateBaseUrl("http://[::]:8000", true)).toBe("http://[::]:8000");
+    expect(validateBaseUrl("http://[::ffff:127.0.0.1]:8000", true)).toBe(
+      "http://[::ffff:7f00:1]:8000",
+    );
   });
 });
