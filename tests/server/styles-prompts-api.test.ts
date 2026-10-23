@@ -270,5 +270,132 @@ describe("Styles, Dimensions, and Prompts API", () => {
       const data = await res.json();
       expect(data.valid).toBe(false);
     });
+
+    test("rejects request when dimensions exceed 4,194,304 max pixels", async () => {
+      const res = await fetch(`${baseUrl}/api/validate-generation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "sess-1",
+          prompt: "A poster",
+          styleId: "bauhaus",
+          candidateCount: 1,
+          width: 4096,
+          height: 1025, // 4,198,400 > 4,194,304
+          outputFormat: "png",
+          providerId: "openai",
+          modelId: "gpt-4o",
+        }),
+      });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.valid).toBe(false);
+    });
+  });
+
+  describe("API Resource Bounds & Validation Edge Cases", () => {
+    test("POST /api/dimensions/resolve accepts exact 4,194,304 pixel boundary and rejects 4,194,305+", async () => {
+      // Exactly max pixels
+      const validRes = await fetch(`${baseUrl}/api/dimensions/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ width: 4096, height: 1024 }),
+      });
+      expect(validRes.status).toBe(200);
+      const validData = await validRes.json();
+      expect(validData.dimensions).toEqual({
+        width: 4096,
+        height: 1024,
+        aspectRatio: "custom",
+      });
+
+      // 1 pixel over boundary
+      const invalidRes = await fetch(`${baseUrl}/api/dimensions/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ width: 4096, height: 1025 }),
+      });
+      expect(invalidRes.status).toBe(400);
+    });
+
+    test("POST /api/prompts/compose accepts exact 4000 char prompt and rejects 4001 chars", async () => {
+      // Exact 4000 chars
+      const validRes = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "a".repeat(4000),
+          styleId: "minimal",
+        }),
+      });
+      expect(validRes.status).toBe(200);
+
+      // 4001 chars
+      const invalidRes = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "a".repeat(4001),
+          styleId: "minimal",
+        }),
+      });
+      expect(invalidRes.status).toBe(400);
+    });
+
+    test("POST /api/prompts/compose validates candidateCount bounds (1 to 4)", async () => {
+      // Lower boundary: 1
+      const res1 = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Test candidate 1",
+          styleId: "swiss",
+          candidateCount: 1,
+        }),
+      });
+      expect(res1.status).toBe(200);
+
+      // Upper boundary: 4
+      const res4 = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Test candidate 4",
+          styleId: "swiss",
+          candidateCount: 4,
+        }),
+      });
+      expect(res4.status).toBe(200);
+
+      // Below lower boundary: 0
+      const res0 = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Test candidate 0",
+          styleId: "swiss",
+          candidateCount: 0,
+        }),
+      });
+      expect(res0.status).toBe(400);
+
+      // Above upper boundary: 5
+      const res5 = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Test candidate 5",
+          styleId: "swiss",
+          candidateCount: 5,
+        }),
+      });
+      expect(res5.status).toBe(400);
+    });
+
+    test("GET /api/styles/:id safely rejects traversal or invalid characters", async () => {
+      const res = await fetch(`${baseUrl}/api/styles/..%2F..%2Fpackage.json`);
+      // URL path decoder normalizes to 404 or regex rejects with 404
+      expect([400, 404]).toContain(res.status);
+    });
   });
 });

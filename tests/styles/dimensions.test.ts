@@ -89,4 +89,31 @@ describe("Aspect Ratio Resolution & Dimension Bounds", () => {
       resolveDimensions({ aspectRatio: "99:99" }),
     ).toThrow(ValidationError);
   });
+
+  test("enforces exact pixel ceiling boundaries (4,194,304 vs 4,194,305+)", () => {
+    // Exactly 4,194,304 pixels with max width
+    expect(() => validateDimensionBounds(4096, 1024)).not.toThrow();
+    // Exactly 4,194,304 pixels with max height
+    expect(() => validateDimensionBounds(1024, 4096)).not.toThrow();
+
+    // Exceeding 4,194,304 by one height increment
+    expect(() => validateDimensionBounds(4096, 1025)).toThrow(ValidationError);
+    // Exceeding 4,194,304 by one width increment
+    expect(() => validateDimensionBounds(1025, 4096)).toThrow(ValidationError);
+  });
+
+  test("enforces exact dimension floor and ceiling boundaries (64 and 4096)", () => {
+    // Minimum allowed 64x64
+    expect(() => validateDimensionBounds(64, 64)).not.toThrow();
+    // Below minimum
+    expect(() => validateDimensionBounds(63, 64)).toThrow(ValidationError);
+    expect(() => validateDimensionBounds(64, 63)).toThrow(ValidationError);
+
+    // Maximum allowed 4096
+    expect(() => validateDimensionBounds(4096, 64)).not.toThrow();
+    expect(() => validateDimensionBounds(64, 4096)).not.toThrow();
+    // Above maximum
+    expect(() => validateDimensionBounds(4097, 64)).toThrow(ValidationError);
+    expect(() => validateDimensionBounds(64, 4097)).toThrow(ValidationError);
+  });
 });

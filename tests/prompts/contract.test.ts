@@ -177,4 +177,132 @@ Let me know if you need adjustments.`;
       ValidationError,
     );
   });
+
+  test("handles candidate labels and rationales containing special characters, unicode, and quotes", () => {
+    const payload = {
+      candidates: [
+        {
+          candidateIndex: 1,
+          label: 'Swiss "Neue" & Neo-Tokyo: 日本語 / 🎨 Special #1',
+          rationale:
+            "Contains quotes 'single' and \"double\", unicode: \u2192 \u2605, angle brackets in text <div style={{}}>, and newlines:\nLine 2",
+          jsx: '<div style={{ width: 1024, height: 1024, display: "flex" }}><span>Special</span></div>',
+        },
+      ],
+    };
+
+    const parsed = parseCandidateResponse(JSON.stringify(payload));
+    expect(parsed.candidates.length).toBe(1);
+    expect(parsed.candidates[0]?.label).toBe(
+      'Swiss "Neue" & Neo-Tokyo: 日本語 / 🎨 Special #1',
+    );
+    expect(parsed.candidates[0]?.rationale).toContain(
+      "Contains quotes 'single' and \"double\"",
+    );
+    expect(parsed.candidates[0]?.rationale).toContain("\u2192 \u2605");
+  });
+
+  test("rejects candidates with invalid or mixed types in candidate array", () => {
+    // Candidate item is null
+    expect(() =>
+      parseCandidateResponse(JSON.stringify({ candidates: [null] })),
+    ).toThrow(ValidationError);
+
+    // Candidate item is a number
+    expect(() =>
+      parseCandidateResponse(JSON.stringify({ candidates: [12345] })),
+    ).toThrow(ValidationError);
+
+    // Candidate label is not a string
+    expect(() =>
+      parseCandidateResponse(
+        JSON.stringify({
+          candidates: [
+            {
+              label: 999,
+              rationale: "Valid rationale",
+              jsx: "<div>test</div>",
+            },
+          ],
+        }),
+      ),
+    ).toThrow(ValidationError);
+
+    // Candidate rationale is not a string
+    expect(() =>
+      parseCandidateResponse(
+        JSON.stringify({
+          candidates: [
+            {
+              label: "Valid label",
+              rationale: true,
+              jsx: "<div>test</div>",
+            },
+          ],
+        }),
+      ),
+    ).toThrow(ValidationError);
+
+    // Candidate jsx is not a string
+    expect(() =>
+      parseCandidateResponse(
+        JSON.stringify({
+          candidates: [
+            {
+              label: "Valid label",
+              rationale: "Valid rationale",
+              jsx: { tag: "div" },
+            },
+          ],
+        }),
+      ),
+    ).toThrow(ValidationError);
+  });
+
+  test("rejects candidates with whitespace-only required fields", () => {
+    // Whitespace label
+    expect(() =>
+      parseCandidateResponse(
+        JSON.stringify({
+          candidates: [
+            {
+              label: "    ",
+              rationale: "Valid rationale",
+              jsx: "<div>test</div>",
+            },
+          ],
+        }),
+      ),
+    ).toThrow(ValidationError);
+
+    // Whitespace rationale
+    expect(() =>
+      parseCandidateResponse(
+        JSON.stringify({
+          candidates: [
+            {
+              label: "Valid label",
+              rationale: " \t\n ",
+              jsx: "<div>test</div>",
+            },
+          ],
+        }),
+      ),
+    ).toThrow(ValidationError);
+
+    // Whitespace jsx
+    expect(() =>
+      parseCandidateResponse(
+        JSON.stringify({
+          candidates: [
+            {
+              label: "Valid label",
+              rationale: "Valid rationale",
+              jsx: "   ",
+            },
+          ],
+        }),
+      ),
+    ).toThrow(ValidationError);
+  });
 });
