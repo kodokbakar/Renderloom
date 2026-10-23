@@ -1,31 +1,77 @@
 import { z } from "zod";
+import {
+  MAX_CANDIDATE_COUNT,
+  MAX_DIMENSION,
+  MAX_PIXELS,
+  MAX_PROMPT_LENGTH,
+  MIN_CANDIDATE_COUNT,
+  MIN_DIMENSION,
+} from "../domain/dimensions";
 import { ValidationError } from "../domain/errors";
 import type {
+  ComposePromptRequest,
   CreateSessionRequest,
   GenerationRequest,
+  ResolveDimensionsRequest,
 } from "../domain/request";
 
-export const GenerationRequestSchema = z.object({
-  sessionId: z.string().min(1, "sessionId is required"),
-  prompt: z.string().min(1, "prompt is required"),
-  styleId: z.string().min(1, "styleId is required"),
-  candidateCount: z.number().int().min(1).max(10),
-  width: z.number().int().min(64).max(4096),
-  height: z.number().int().min(64).max(4096),
-  outputFormat: z.literal("png"),
-  providerId: z.string().min(1, "providerId is required"),
-  modelId: z.string().min(1, "modelId is required"),
-});
+export const AspectRatioEnum = z.enum(["1:1", "4:5", "3:2", "16:9", "custom"]);
 
-export const CreateSessionRequestSchema = z.object({
-  name: z.string().min(1).max(100),
-  providerId: z.string().min(1),
-  modelId: z.string().min(1),
-  styleId: z.string().min(1),
-  width: z.number().int().min(64).max(4096),
-  height: z.number().int().min(64).max(4096),
-  initialPrompt: z.string().optional(),
-});
+export const GenerationRequestSchema = z
+  .object({
+    sessionId: z.string().min(1, "sessionId is required"),
+    prompt: z
+      .string()
+      .min(1, "prompt is required")
+      .max(
+        MAX_PROMPT_LENGTH,
+        `prompt cannot exceed ${MAX_PROMPT_LENGTH} characters`,
+      ),
+    styleId: z.string().min(1, "styleId is required"),
+    candidateCount: z
+      .number()
+      .int()
+      .min(
+        MIN_CANDIDATE_COUNT,
+        `candidateCount must be between ${MIN_CANDIDATE_COUNT} and ${MAX_CANDIDATE_COUNT}`,
+      )
+      .max(
+        MAX_CANDIDATE_COUNT,
+        `candidateCount must be between ${MIN_CANDIDATE_COUNT} and ${MAX_CANDIDATE_COUNT}`,
+      ),
+    width: z
+      .number()
+      .int()
+      .min(MIN_DIMENSION, `width must be at least ${MIN_DIMENSION}`)
+      .max(MAX_DIMENSION, `width cannot exceed ${MAX_DIMENSION}`),
+    height: z
+      .number()
+      .int()
+      .min(MIN_DIMENSION, `height must be at least ${MIN_DIMENSION}`)
+      .max(MAX_DIMENSION, `height cannot exceed ${MAX_DIMENSION}`),
+    aspectRatio: AspectRatioEnum.optional(),
+    outputFormat: z.literal("png"),
+    providerId: z.string().min(1, "providerId is required"),
+    modelId: z.string().min(1, "modelId is required"),
+  })
+  .refine((data) => data.width * data.height <= MAX_PIXELS, {
+    message: `Total pixels (${MAX_PIXELS}) exceeded`,
+  });
+
+export const CreateSessionRequestSchema = z
+  .object({
+    name: z.string().min(1).max(100),
+    providerId: z.string().min(1),
+    modelId: z.string().min(1),
+    styleId: z.string().min(1),
+    width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
+    height: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
+    aspectRatio: AspectRatioEnum.optional(),
+    initialPrompt: z.string().max(MAX_PROMPT_LENGTH).optional(),
+  })
+  .refine((data) => data.width * data.height <= MAX_PIXELS, {
+    message: `Total pixels (${MAX_PIXELS}) exceeded`,
+  });
 
 export const RenameSessionRequestSchema = z.object({
   name: z.string().min(1, "name is required").max(100),
@@ -51,6 +97,52 @@ export const TestConnectionRequestSchema = z.object({
   baseUrl: z.string().optional(),
 });
 export type TestConnectionRequest = z.infer<typeof TestConnectionRequestSchema>;
+
+export const ResolveDimensionsSchema = z
+  .object({
+    aspectRatio: AspectRatioEnum.optional(),
+    width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION).optional(),
+    height: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.width && data.height) {
+        return data.width * data.height <= MAX_PIXELS;
+      }
+      return true;
+    },
+    { message: `Total pixels cannot exceed ${MAX_PIXELS}` },
+  );
+
+export const ComposePromptSchema = z
+  .object({
+    prompt: z
+      .string()
+      .min(1, "prompt is required")
+      .max(
+        MAX_PROMPT_LENGTH,
+        `prompt cannot exceed ${MAX_PROMPT_LENGTH} characters`,
+      ),
+    styleId: z.string().min(1, "styleId is required"),
+    candidateCount: z
+      .number()
+      .int()
+      .min(MIN_CANDIDATE_COUNT)
+      .max(MAX_CANDIDATE_COUNT)
+      .optional(),
+    aspectRatio: AspectRatioEnum.optional(),
+    width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION).optional(),
+    height: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION).optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.width && data.height) {
+        return data.width * data.height <= MAX_PIXELS;
+      }
+      return true;
+    },
+    { message: `Total pixels cannot exceed ${MAX_PIXELS}` },
+  );
 
 export function validateGenerationRequest(input: unknown): GenerationRequest {
   const result = GenerationRequestSchema.safeParse(input);
@@ -102,6 +194,34 @@ export function validateTestConnectionRequest(
   if (!result.success) {
     throw new ValidationError(
       "Invalid test connection request",
+      result.error.format(),
+    );
+  }
+  return result.data;
+}
+
+export function validateResolveDimensionsRequest(
+  input: unknown,
+): ResolveDimensionsRequest {
+  const result = ResolveDimensionsSchema.safeParse(input);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => i.message).join(", ");
+    throw new ValidationError(
+      `Invalid dimensions resolution request: ${issues}`,
+      result.error.format(),
+    );
+  }
+  return result.data;
+}
+
+export function validateComposePromptRequest(
+  input: unknown,
+): ComposePromptRequest {
+  const result = ComposePromptSchema.safeParse(input);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => i.message).join(", ");
+    throw new ValidationError(
+      `Invalid prompt compose request: ${issues}`,
       result.error.format(),
     );
   }
