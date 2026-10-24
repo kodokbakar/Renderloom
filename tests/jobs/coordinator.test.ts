@@ -265,6 +265,10 @@ describe("GenerationCoordinator", () => {
     const full = await sessionService.getSession(sessionId);
     expect(full.artifacts.images).toContain("design-001-v001.png");
     expect(full.artifacts.images).toContain("design-002-v001.png");
+    expect(full.session.candidates?.length).toBe(2);
+    expect(
+      full.session.candidates?.find((c) => c.id === "design-002")?.label,
+    ).toBe("Candidate 2 Retried");
   });
 
   test("cancelling a batch aborts pending and running jobs", async () => {
@@ -356,6 +360,25 @@ describe("GenerationCoordinator", () => {
       "design-003",
       "design-004",
     ]);
+
+    // Batch 3: candidate count 1 to verify continued monotonicity
+    const b3 = await coordinator.startGeneration({
+      sessionId,
+      prompt: "Third batch",
+      candidateCount: 1,
+    });
+    await b3.completionPromise;
+    expect(b3.candidates.map((c) => c.candidateId)).toEqual(["design-005"]);
+
+    const fullAfterB3 = await sessionService.getSession(sessionId);
+    const allIds = fullAfterB3.session.candidates?.map((c) => c.id);
+    expect(allIds).toEqual([
+      "design-001",
+      "design-002",
+      "design-003",
+      "design-004",
+      "design-005",
+    ]);
   });
 
   test("rejects retrying an already completed candidate with ValidationError", async () => {
@@ -442,6 +465,11 @@ describe("GenerationCoordinator", () => {
     expect(finished.status).toBe("partial_success");
     expect(finished.candidates[0]?.candidate.state).toBe("completed");
     expect(finished.candidates[1]?.candidate.state).toBe("cancelled");
+
+    // Guard on partial_success batch and terminal candidate states
+    expect(coordinator.cancelBatch(batch.id)).toBe(false);
+    expect(coordinator.cancelCandidate(batch.id, "design-001")).toBe(false);
+    expect(coordinator.cancelCandidate(batch.id, "design-002")).toBe(false);
   });
 
   test("rapid multiple cancellations on batch and candidate are idempotent", async () => {
@@ -491,6 +519,8 @@ describe("GenerationCoordinator", () => {
     expect(coordinator.cancelCandidate("nonexistent", "design-001")).toBe(
       false,
     );
+    expect(coordinator.cancelCandidate(batch.id, "design-001")).toBe(false);
+    expect(coordinator.cancelCandidate(batch.id, "design-002")).toBe(false);
   });
 
   test("distinguishes total failure from partial success when all candidates fail", async () => {
@@ -528,5 +558,7 @@ describe("GenerationCoordinator", () => {
       failed: 2,
       cancelled: 0,
     });
+    expect(coordinator.cancelBatch(batch.id)).toBe(false);
+    expect(coordinator.cancelCandidate(batch.id, "design-001")).toBe(false);
   });
 });

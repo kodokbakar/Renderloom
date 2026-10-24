@@ -118,4 +118,90 @@ describe("Session Candidate Persistence", () => {
     const full = await service.getSession(session.id);
     expect(full.session.lastBatchStatus).toBe("partial_success");
   });
+
+  test("recordBatchSummary preserves existing candidates and merges new candidates", async () => {
+    const session = await service.createSession({
+      name: "Batch Merge Test",
+      providerId: "openai",
+      modelId: "gpt-4o",
+      styleId: "tech-spec",
+      width: 1024,
+      height: 1024,
+    });
+
+    const c1: Candidate = {
+      id: "design-001",
+      sessionId: session.id,
+      index: 1,
+      state: "completed",
+      label: "Design 1",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const c2: Candidate = {
+      id: "design-002",
+      sessionId: session.id,
+      index: 2,
+      state: "failed",
+      label: "Design 2",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // First batch completes with c1 and c2
+    const summary1: BatchSummary = {
+      batchId: "batch-1",
+      status: "partial_success",
+      totalCandidates: 2,
+      successfulCandidates: 1,
+      failedCandidates: 1,
+      cancelledCandidates: 0,
+      completedAt: new Date().toISOString(),
+    };
+    await service.recordBatchSummary(session.id, summary1, [c1, c2]);
+
+    // Second batch completes with updated c2 (e.g. retried) and new c3
+    const c2Retried: Candidate = {
+      ...c2,
+      state: "completed",
+      label: "Design 2 Retried",
+      updatedAt: new Date().toISOString(),
+    };
+    const c3: Candidate = {
+      id: "design-003",
+      sessionId: session.id,
+      index: 3,
+      state: "completed",
+      label: "Design 3",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const summary2: BatchSummary = {
+      batchId: "batch-2",
+      status: "completed",
+      totalCandidates: 2,
+      successfulCandidates: 2,
+      failedCandidates: 0,
+      cancelledCandidates: 0,
+      completedAt: new Date().toISOString(),
+    };
+    const result = await service.recordBatchSummary(session.id, summary2, [
+      c2Retried,
+      c3,
+    ]);
+
+    expect(result.candidates?.length).toBe(3);
+    expect(result.candidates?.map((c) => c.id)).toEqual([
+      "design-001",
+      "design-002",
+      "design-003",
+    ]);
+    expect(result.candidates?.find((c) => c.id === "design-002")?.state).toBe(
+      "completed",
+    );
+    expect(result.candidates?.find((c) => c.id === "design-002")?.label).toBe(
+      "Design 2 Retried",
+    );
+  });
 });
