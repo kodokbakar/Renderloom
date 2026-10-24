@@ -8,6 +8,7 @@ import { WorkspaceHeader } from "../components/WorkspaceHeader";
 import { buildArtifactUrl } from "../components/utils/artifact-url";
 import type { Candidate } from "../domain/candidate";
 import type { FullSession, Session, SessionSummary } from "../domain/session";
+import type { Version } from "../domain/version";
 
 export interface AppProps {
   initialFullSession?: FullSession;
@@ -34,7 +35,8 @@ export function App({
   const [sourceCache, setSourceCache] = useState<
     Record<string, { jsx?: string; svg?: string }>
   >({});
-
+  const [isRevising, setIsRevising] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   const session = fullSession?.session;
   const candidates: Candidate[] = session?.candidates || [];
   const selectedCandidate =
@@ -260,6 +262,103 @@ export function App({
     }
   };
 
+  const handleReviseCandidate = async (
+    candidateId: string,
+    prompt: string,
+    parentVersionId?: string,
+  ) => {
+    if (!session) return;
+    setIsRevising(true);
+    try {
+      const res = await fetch(
+        `/api/sessions/${session.id}/candidates/${candidateId}/revisions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt, parentVersionId }),
+        },
+      );
+      if (res.ok) {
+        const { candidate: revised } = (await res.json()) as {
+          candidate: Candidate;
+          version: Version;
+        };
+        setSourceCache((prev) => {
+          const next = { ...prev };
+          delete next[candidateId];
+          return next;
+        });
+        setFullSession((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            session: {
+              ...prev.session,
+              candidates: prev.session.candidates?.map((c) =>
+                c.id === revised.id ? revised : c,
+              ),
+            },
+          };
+        });
+      } else {
+        try {
+          const sessRes = await fetch(`/api/sessions/${session.id}`);
+          if (sessRes.ok) {
+            const data = (await sessRes.json()) as FullSession;
+            setFullSession(data);
+          }
+        } catch {
+          // Offline fallback
+        }
+      }
+    } catch {
+      // Offline fallback
+    } finally {
+      setIsRevising(false);
+    }
+  };
+
+  const handleRestoreVersion = async (
+    candidateId: string,
+    versionId: string,
+  ) => {
+    if (!session) return;
+    setIsRestoring(true);
+    try {
+      const res = await fetch(
+        `/api/sessions/${session.id}/candidates/${candidateId}/versions/${versionId}/restore`,
+        { method: "POST" },
+      );
+      if (res.ok) {
+        const { candidate: restored } = (await res.json()) as {
+          candidate: Candidate;
+          restoredVersion: Version;
+        };
+        setSourceCache((prev) => {
+          const next = { ...prev };
+          delete next[candidateId];
+          return next;
+        });
+        setFullSession((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            session: {
+              ...prev.session,
+              candidates: prev.session.candidates?.map((c) =>
+                c.id === restored.id ? restored : c,
+              ),
+            },
+          };
+        });
+      }
+    } catch {
+      // Offline fallback
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   const fallbackSession: Session = session || {
     id: "default-session",
     name: "Renderloom Workspace",
@@ -323,6 +422,10 @@ export function App({
         jsxSource={activeSources?.jsx}
         svgSource={activeSources?.svg}
         isLoadingSource={isLoadingSource}
+        onRevise={handleReviseCandidate}
+        onRestoreVersion={handleRestoreVersion}
+        isRevising={isRevising}
+        isRestoring={isRestoring}
       />
     </div>
   );

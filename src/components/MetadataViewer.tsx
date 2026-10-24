@@ -27,8 +27,10 @@ export function MetadataViewer({
   className = "",
 }: MetadataViewerProps) {
   const versionId = candidate.currentVersionId || "v1";
+  const activeVersion =
+    candidate.versions?.find((v) => v.id === versionId) ||
+    candidate.versions?.[candidate.versions.length - 1];
   const timings = candidate.timings;
-
   const totalDuration = timings?.durationMs;
   const genDuration = computePhaseDuration(
     timings?.generationStartedAt,
@@ -56,6 +58,20 @@ export function MetadataViewer({
             <dt>Version ID</dt>
             <dd className="monospace">{versionId}</dd>
           </div>
+          {activeVersion?.parentVersionId && (
+            <div className="metadata-item">
+              <dt>Parent Version</dt>
+              <dd className="monospace">{activeVersion.parentVersionId}</dd>
+            </div>
+          )}
+          {activeVersion?.revisionPrompt && (
+            <div className="metadata-item full-width">
+              <dt>Revision Prompt</dt>
+              <dd className="revision-prompt-text">
+                {activeVersion.revisionPrompt}
+              </dd>
+            </div>
+          )}
           <div className="metadata-item">
             <dt>Candidate ID</dt>
             <dd className="monospace">{candidate.id}</dd>

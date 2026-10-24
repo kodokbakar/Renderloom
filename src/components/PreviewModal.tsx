@@ -5,8 +5,10 @@ import { DownloadActions } from "./DownloadActions";
 import { ErrorCard } from "./ErrorCard";
 import { ImagePreview } from "./ImagePreview";
 import { MetadataViewer } from "./MetadataViewer";
+import { RevisionInput } from "./RevisionInput";
 import { SourceViewer } from "./SourceViewer";
 import { StatusBadge } from "./StatusBadge";
+import { VersionHistory } from "./VersionHistory";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -32,6 +34,17 @@ export interface PreviewModalProps {
   jsxSource?: string;
   svgSource?: string;
   isLoadingSource?: boolean;
+  onRevise?: (
+    candidateId: string,
+    prompt: string,
+    parentVersionId?: string,
+  ) => Promise<void> | void;
+  onRestoreVersion?: (
+    candidateId: string,
+    versionId: string,
+  ) => Promise<void> | void;
+  isRevising?: boolean;
+  isRestoring?: boolean;
 }
 
 export function PreviewModal({
@@ -48,9 +61,22 @@ export function PreviewModal({
   jsxSource,
   svgSource,
   isLoadingSource = false,
+  onRevise,
+  onRestoreVersion,
+  isRevising = false,
+  isRestoring = false,
 }: PreviewModalProps) {
   const [activeTab, setActiveTab] = useState<PreviewTab>("preview");
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(
+    null,
+  );
 
+  // Reset selected historical version when switching candidate
+  useEffect(() => {
+    if (candidate?.id) {
+      setSelectedVersionId(null);
+    }
+  }, [candidate?.id]);
   // Keyboard navigation: Escape to close, ArrowLeft / ArrowRight to navigate candidates
   useEffect(() => {
     if (!isOpen) return;
@@ -79,18 +105,30 @@ export function PreviewModal({
   const displayName = candidate.label || `Candidate #${candidate.index + 1}`;
 
   // Image URL resolution
+  const activeVersionId = candidate.currentVersionId || "v001";
+  const effectiveVersionId = selectedVersionId || activeVersionId;
+  const viewedVersion =
+    candidate.versions?.find((v) => v.id === effectiveVersionId) ||
+    candidate.versions?.[candidate.versions.length - 1];
+  const isViewingHistorical = Boolean(
+    selectedVersionId && selectedVersionId !== activeVersionId,
+  );
+
+  // Image URL resolution
   let imageUrl: string | null = null;
-  if (candidate.state === "completed" && candidate.artifacts?.pngPath) {
-    const filename = candidate.artifacts.pngPath.split("/").pop();
-    if (filename) {
-      try {
-        imageUrl = buildArtifactUrl(sessionId, "images", filename);
-      } catch {
-        imageUrl = null;
+  if (candidate.state === "completed") {
+    const pngPath = viewedVersion?.pngPath || candidate.artifacts?.pngPath;
+    if (pngPath) {
+      const filename = pngPath.split("/").pop();
+      if (filename) {
+        try {
+          imageUrl = buildArtifactUrl(sessionId, "images", filename);
+        } catch {
+          imageUrl = null;
+        }
       }
     }
   }
-
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: Backdrop click dismisses modal overlay
     <div
@@ -191,6 +229,27 @@ export function PreviewModal({
         {/* Modal Body: Left View / Right Metadata */}
         <div className="preview-modal-body">
           <div className="preview-main-content">
+            {isViewingHistorical && viewedVersion && (
+              <div className="historical-view-banner">
+                <span>
+                  Viewing historical version{" "}
+                  <strong>v{viewedVersion.versionNumber}</strong> (Active is{" "}
+                  {activeVersionId})
+                </span>
+                {onRestoreVersion && (
+                  <button
+                    type="button"
+                    className="btn-restore-banner"
+                    disabled={isRestoring}
+                    onClick={() =>
+                      onRestoreVersion(candidate.id, viewedVersion.id)
+                    }
+                  >
+                    {isRestoring ? "Restoring..." : "Restore as Active"}
+                  </button>
+                )}
+              </div>
+            )}
             {activeTab === "preview" && (
               <ImagePreview
                 imageUrl={imageUrl}
@@ -218,6 +277,46 @@ export function PreviewModal({
           </div>
 
           <aside className="preview-sidebar">
+            {candidate.lastRevisionError && (
+              <div className="revision-error-alert" role="alert">
+                <div className="revision-error-header">
+                  <strong>Revision Failed</strong>
+                  {candidate.lastRevisionError.code && (
+                    <span className="monospace revision-error-code">
+                      {candidate.lastRevisionError.code}
+                    </span>
+                  )}
+                </div>
+                <p className="revision-error-message">
+                  {candidate.lastRevisionError.message}
+                </p>
+                <small className="revision-error-note">
+                  Active version remains usable.
+                </small>
+              </div>
+            )}
+            <RevisionInput
+              candidateId={candidate.id}
+              parentVersionId={activeVersionId}
+              disabled={candidate.state !== "completed"}
+              isSubmitting={isRevising}
+              onSubmit={(prompt) =>
+                onRevise?.(candidate.id, prompt, activeVersionId)
+              }
+            />
+            {candidate.versions && candidate.versions.length > 0 && (
+              <VersionHistory
+                sessionId={sessionId}
+                versions={candidate.versions}
+                currentVersionId={activeVersionId}
+                selectedVersionId={effectiveVersionId}
+                onSelectVersion={(v) => setSelectedVersionId(v.id)}
+                onRestoreVersion={(vId) =>
+                  onRestoreVersion?.(candidate.id, vId)
+                }
+                isRestoring={isRestoring}
+              />
+            )}
             <ErrorCard candidate={candidate} onRetry={onRetry} />
             <DownloadActions sessionId={sessionId} candidate={candidate} />
             <MetadataViewer candidate={candidate} session={session} />
