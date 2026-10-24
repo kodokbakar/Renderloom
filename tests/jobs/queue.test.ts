@@ -138,4 +138,32 @@ describe("BoundedQueue", () => {
     expect(() => new BoundedQueue(-1)).toThrow();
     expect(() => new BoundedQueue(1.5)).toThrow();
   });
+
+  test("handles large queue backlog preserving concurrency upper bound", async () => {
+    const queue = new BoundedQueue(3);
+    let active = 0;
+    let maxActive = 0;
+    const completed: number[] = [];
+
+    const tasks = Array.from({ length: 15 }, (_, i) => async () => {
+      active++;
+      maxActive = Math.max(maxActive, active);
+      // Yield execution across microtasks without wall-clock timer
+      await Promise.resolve();
+      await Promise.resolve();
+      active--;
+      completed.push(i);
+      return i;
+    });
+
+    const promises = tasks.map((t) => queue.enqueue(t));
+    await queue.onIdle();
+    const results = await Promise.all(promises);
+
+    expect(results.length).toBe(15);
+    expect(completed.length).toBe(15);
+    expect(maxActive).toBeLessThanOrEqual(3);
+    expect(queue.runningCount).toBe(0);
+    expect(queue.pendingCount).toBe(0);
+  });
 });

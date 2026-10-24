@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { rm } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import type { CandidateState } from "../../src/domain/candidate";
 import { ProviderError } from "../../src/domain/errors";
@@ -121,6 +121,10 @@ describe("Candidate Job Executor", () => {
       "design-001-v001.png",
     );
     expect(pngPath.mimeType).toBe("image/png");
+    const pngBytes = await readFile(pngPath.filePath);
+    expect(pngBytes.subarray(0, 8)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
 
     const svgPath = await sessionService.getArtifactPath(
       sessionId,
@@ -244,5 +248,36 @@ describe("Candidate Job Executor", () => {
 
     expect(candidate.state).toBe("cancelled");
     expect(candidate.errorMessage).toContain("Cancelled");
+  });
+
+  test("marks candidate failed with error code when rendering encounters invalid dimensions", async () => {
+    const validPayload = JSON.stringify({
+      label: "Invalid Dim Card",
+      rationale: "Rationale",
+      jsx: "<div style={{ width: 100, height: 100 }}>Render</div>",
+    });
+
+    const mockAdapter = new MockProviderAdapter(async () => ({
+      rawText: validPayload,
+      modelId: "mock-model",
+      durationMs: 10,
+    }));
+
+    const candidate = await executeCandidateJob({
+      sessionId,
+      candidateId: "design-005",
+      index: 5,
+      prompt: "Prompt",
+      providerAdapter: mockAdapter,
+      modelId: "mock-model",
+      apiKey: "test-key",
+      width: -10,
+      height: 100,
+      sessionService,
+    });
+
+    expect(candidate.state).toBe("failed");
+    expect(candidate.errorCode).toBe("UNSUPPORTED_SYNTAX");
+    expect(candidate.errorMessage).toContain("must be positive integers");
   });
 });

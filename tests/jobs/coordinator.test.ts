@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { rm } from "node:fs/promises";
 import path from "node:path";
 import type { Candidate } from "../../src/domain/candidate";
+import { ValidationError } from "../../src/domain/errors";
 import type {
   LLMGenerationRequest,
   LLMGenerationResponse,
@@ -302,5 +303,230 @@ describe("GenerationCoordinator", () => {
     expect(
       finished.candidates.every((c) => c.candidate.state === "cancelled"),
     ).toBe(true);
+  });
+
+  test("increments candidate IDs stably across successive generation batches in the same session", async () => {
+    const adapter = new MockAdapter(async () => ({
+      rawText: JSON.stringify({
+        label: "Design",
+        rationale: "Rationale",
+        jsx: "<div style={{ width: 200, height: 100 }}>Design</div>",
+      }),
+      modelId: "mock-model",
+      durationMs: 5,
+    }));
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    // Batch 1: candidate count 2
+    const b1 = await coordinator.startGeneration({
+      sessionId,
+      prompt: "First batch",
+      candidateCount: 2,
+    });
+    await b1.completionPromise;
+    expect(b1.candidates.map((c) => c.candidateId)).toEqual([
+      "design-001",
+      "design-002",
+    ]);
+
+    // Batch 2: candidate count 2
+    const b2 = await coordinator.startGeneration({
+      sessionId,
+      prompt: "Second batch",
+      candidateCount: 2,
+    });
+    await b2.completionPromise;
+    expect(b2.candidates.map((c) => c.candidateId)).toEqual([
+      "design-003",
+      "design-004",
+    ]);
+
+    const full = await sessionService.getSession(sessionId);
+    const ids = full.session.candidates?.map((c) => c.id);
+    expect(ids).toEqual([
+      "design-001",
+      "design-002",
+      "design-003",
+      "design-004",
+    ]);
+  });
+
+  test("rejects retrying an already completed candidate with ValidationError", async () => {
+    const adapter = new MockAdapter(async () => ({
+      rawText: JSON.stringify({
+        label: "Success",
+        rationale: "Works",
+        jsx: "<div style={{ width: 200, height: 100 }}>OK</div>",
+      }),
+      modelId: "mock-model",
+      durationMs: 5,
+    }));
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "Single",
+      candidateCount: 1,
+    });
+    await batch.completionPromise;
+
+    await expect(
+      coordinator.retryCandidate(batch.id, "design-001"),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      coordinator.retryCandidate(batch.id, "design-001"),
+    ).rejects.toThrow(/already completed/);
+
+    await expect(
+      coordinator.retryCandidate(batch.id, "nonexistent"),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  test("cancelling individual queued candidate leaves running candidate to finish as partial_success", async () => {
+    const gate = Promise.withResolvers<void>();
+    let callCount = 0;
+
+    const adapter = new MockAdapter(async () => {
+      callCount++;
+      if (callCount === 1) {
+        await gate.promise;
+      }
+      return {
+        rawText: JSON.stringify({
+          label: "Card",
+          rationale: "Rationale",
+          jsx: "<div style={{ width: 200, height: 100 }}>Content</div>",
+        }),
+        modelId: "mock-model",
+        durationMs: 5,
+      };
+    });
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+      concurrency: 1,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "Two candidates concurrency 1",
+      candidateCount: 2,
+    });
+
+    // Cancel candidate 2 while candidate 1 is running
+    const didCancel = coordinator.cancelCandidate(batch.id, "design-002");
+    expect(didCancel).toBe(true);
+
+    // Release candidate 1
+    gate.resolve();
+    const finished = await batch.completionPromise;
+
+    expect(finished.status).toBe("partial_success");
+    expect(finished.candidates[0]?.candidate.state).toBe("completed");
+    expect(finished.candidates[1]?.candidate.state).toBe("cancelled");
+  });
+
+  test("rapid multiple cancellations on batch and candidate are idempotent", async () => {
+    const adapter = new MockAdapter(async (req) => {
+      const { promise, reject } =
+        Promise.withResolvers<LLMGenerationResponse>();
+      req.signal?.addEventListener("abort", () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        reject(err);
+      });
+      return promise;
+    });
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "Rapid cancel",
+      candidateCount: 2,
+    });
+
+    // Call cancelCandidate multiple times rapidly
+    const c1 = coordinator.cancelCandidate(batch.id, "design-001");
+    const c2 = coordinator.cancelCandidate(batch.id, "design-001");
+    expect(c1).toBe(true);
+    expect(c2).toBe(true);
+
+    // Call cancelBatch multiple times
+    const b1 = coordinator.cancelBatch(batch.id);
+    const b2 = coordinator.cancelBatch(batch.id);
+    expect(b1).toBe(true);
+    expect(b2).toBe(true);
+
+    const finished = await batch.completionPromise;
+    expect(finished.status).toBe("cancelled");
+
+    // After completion, cancelBatch returns false
+    expect(coordinator.cancelBatch(batch.id)).toBe(false);
+    expect(coordinator.cancelBatch("nonexistent")).toBe(false);
+    expect(coordinator.cancelCandidate("nonexistent", "design-001")).toBe(
+      false,
+    );
+  });
+
+  test("distinguishes total failure from partial success when all candidates fail", async () => {
+    const adapter = new MockAdapter(async () => ({
+      rawText: "not json",
+      modelId: "mock-model",
+      durationMs: 5,
+    }));
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "All fail",
+      candidateCount: 2,
+    });
+    const finished = await batch.completionPromise;
+
+    expect(finished.status).toBe("failed");
+    expect(
+      finished.candidates.every((c) => c.candidate.state === "failed"),
+    ).toBe(true);
+
+    const view = coordinator.getBatchView(batch.id);
+    expect(view?.status).toBe("failed");
+    expect(view?.summary).toEqual({
+      total: 2,
+      completed: 0,
+      failed: 2,
+      cancelled: 0,
+    });
   });
 });

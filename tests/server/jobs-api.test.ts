@@ -306,4 +306,187 @@ describe("Jobs HTTP API", () => {
     expect(accumulated).toContain("event: snapshot");
     expect(accumulated).toContain("event: batch_completed");
   });
+
+  test("GET /api/generations/:batchId returns partial_success status and summary", async () => {
+    let calls = 0;
+    const adapter = new MockAdapter(async () => {
+      calls++;
+      if (calls === 1) {
+        return {
+          rawText: JSON.stringify({
+            label: "Succeeds",
+            rationale: "Works",
+            jsx: "<div style={{ width: 200, height: 100 }}>OK</div>",
+          }),
+          modelId: "mock-model",
+          durationMs: 5,
+        };
+      }
+      return {
+        rawText: "not json at all",
+        modelId: "mock-model",
+        durationMs: 5,
+      };
+    });
+    providerRegistry.register(adapter);
+
+    const startRes = await fetch(`${baseUrl}/api/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        prompt: "Partial success test",
+        candidateCount: 2,
+      }),
+    });
+    const { batchId } = (await startRes.json()) as { batchId: string };
+
+    const batch = coordinator.getBatch(batchId);
+    await batch?.completionPromise;
+
+    const getRes = await fetch(`${baseUrl}/api/generations/${batchId}`);
+    expect(getRes.status).toBe(200);
+    const data = (await getRes.json()) as {
+      batch: {
+        status: string;
+        summary: {
+          total: number;
+          completed: number;
+          failed: number;
+          cancelled: number;
+        };
+      };
+    };
+
+    expect(data.batch.status).toBe("partial_success");
+    expect(data.batch.summary).toEqual({
+      total: 2,
+      completed: 1,
+      failed: 1,
+      cancelled: 0,
+    });
+  });
+
+  test("POST /api/generations/:batchId/candidates/:candidateId/retry returns 400 for already completed candidate", async () => {
+    const adapter = new MockAdapter(async () => ({
+      rawText: JSON.stringify({
+        label: "Success",
+        rationale: "Works",
+        jsx: "<div style={{ width: 200, height: 100 }}>OK</div>",
+      }),
+      modelId: "mock-model",
+      durationMs: 5,
+    }));
+    providerRegistry.register(adapter);
+
+    const startRes = await fetch(`${baseUrl}/api/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        prompt: "Single completion",
+        candidateCount: 1,
+      }),
+    });
+    const { batchId } = (await startRes.json()) as { batchId: string };
+
+    const batch = coordinator.getBatch(batchId);
+    await batch?.completionPromise;
+
+    const retryRes = await fetch(
+      `${baseUrl}/api/generations/${batchId}/candidates/design-001/retry`,
+      { method: "POST" },
+    );
+    expect(retryRes.status).toBe(400);
+    const errData = (await retryRes.json()) as { error: string };
+    expect(errData.error).toContain("already completed");
+  });
+
+  test("POST /api/generations/:batchId/cancel returns 404 for nonexistent batch", async () => {
+    const cancelRes = await fetch(
+      `${baseUrl}/api/generations/batch-nonexistent/cancel`,
+      { method: "POST" },
+    );
+    expect(cancelRes.status).toBe(404);
+  });
+
+  test("GET /api/generations/:batchId/events closes immediately for already completed batch", async () => {
+    const adapter = new MockAdapter(async () => ({
+      rawText: JSON.stringify({
+        label: "Done",
+        rationale: "Done",
+        jsx: "<div style={{ width: 200, height: 100 }}>Done</div>",
+      }),
+      modelId: "mock-model",
+      durationMs: 5,
+    }));
+    providerRegistry.register(adapter);
+
+    const startRes = await fetch(`${baseUrl}/api/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        prompt: "Terminal SSE test",
+        candidateCount: 1,
+      }),
+    });
+    const { batchId } = (await startRes.json()) as { batchId: string };
+    const batch = coordinator.getBatch(batchId);
+    await batch?.completionPromise;
+
+    const sseRes = await fetch(`${baseUrl}/api/generations/${batchId}/events`);
+    expect(sseRes.status).toBe(200);
+    const reader = sseRes.body?.getReader();
+    expect(reader).toBeDefined();
+
+    const decoder = new TextDecoder();
+    let text = "";
+    while (reader) {
+      const { done, value } = await reader.read();
+      if (value) text += decoder.decode(value);
+      if (done) break;
+    }
+    expect(text).toContain("event: snapshot");
+  });
+
+  test("GET /api/generations/:batchId/events handles client disconnect during streaming", async () => {
+    const adapter = new MockAdapter(async (req) => {
+      const { promise, reject } =
+        Promise.withResolvers<LLMGenerationResponse>();
+      req.signal?.addEventListener("abort", () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        reject(err);
+      });
+      return promise;
+    });
+    providerRegistry.register(adapter);
+
+    const startRes = await fetch(`${baseUrl}/api/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        prompt: "Disconnect SSE test",
+        candidateCount: 1,
+      }),
+    });
+    const { batchId } = (await startRes.json()) as { batchId: string };
+
+    const clientAbort = new AbortController();
+    const sseRes = await fetch(`${baseUrl}/api/generations/${batchId}/events`, {
+      signal: clientAbort.signal,
+    });
+    expect(sseRes.status).toBe(200);
+
+    const reader = sseRes.body?.getReader();
+    const { value } = (await reader?.read()) ?? {};
+    const initial = new TextDecoder().decode(value);
+    expect(initial).toContain("event: snapshot");
+
+    // Client disconnects
+    clientAbort.abort();
+    coordinator.cancelBatch(batchId);
+  });
 });
