@@ -13,6 +13,8 @@ export const MIN_CANDIDATE_COUNT = 1;
 export const MAX_CANDIDATE_COUNT = 4;
 export const MAX_PROMPT_LENGTH = 4000;
 export const MAX_ASSET_COUNT = 10;
+export const MAX_RESPONSE_SIZE = 1_048_576; // 1 MB
+export const MAX_SOURCE_LENGTH = 131_072; // 128 KB
 
 export const ASPECT_RATIO_PRESETS: Record<
   Exclude<AspectRatioPreset, "custom">,
