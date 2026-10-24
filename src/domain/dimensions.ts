@@ -15,6 +15,11 @@ export const MAX_PROMPT_LENGTH = 4000;
 export const MAX_ASSET_COUNT = 10;
 export const MAX_RESPONSE_SIZE = 1_048_576; // 1 MB
 export const MAX_SOURCE_LENGTH = 131_072; // 128 KB
+export const MAX_ASSET_BYTES = 5_242_880; // 5 MB
+export const MAX_SVG_BYTES = 10_485_760; // 10 MB
+export const MAX_RENDER_DURATION_MS = 30_000; // 30 seconds
+export const MAX_AST_DEPTH = 64;
+export const MAX_AST_NODES = 2000;
 
 export const ASPECT_RATIO_PRESETS: Record<
   Exclude<AspectRatioPreset, "custom">,

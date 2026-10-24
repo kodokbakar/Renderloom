@@ -55,6 +55,7 @@ export interface RenderOptions {
   height: number;
   fonts?: FontConfig[];
   baseDir?: string;
+  timeoutMs?: number;
 }
 
 export interface RenderResult {
