@@ -377,4 +377,218 @@ describe("Revision Execution Pipeline & Failure Safety", () => {
       "v003",
     ]);
   });
+
+  test("consecutive revisions create v002 -> v003 -> v004 with linear parent chain and intact artifacts", async () => {
+    let step = 1;
+    const adapter = new MockAdapter(async () => {
+      step++;
+      return {
+        rawText: JSON.stringify({
+          candidates: [
+            {
+              candidateIndex: 1,
+              label: `Version ${step} Layout`,
+              rationale: `Step ${step} rationale`,
+              jsx: `<div style={{ display: 'flex', width: 800, height: 800, backgroundColor: '#${step}${step}${step}fff' }}><p>V${step}</p></div>`,
+            },
+          ],
+        }),
+        modelId: "mock-model",
+        durationMs: 200,
+      };
+    });
+    providerRegistry.register(adapter);
+
+    coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    const res2 = await coordinator.reviseCandidate({
+      sessionId,
+      candidateId,
+      prompt: "Make v002",
+    });
+    expect(res2.version.id).toBe("v002");
+    expect(res2.version.parentVersionId).toBe("v001");
+
+    const res3 = await coordinator.reviseCandidate({
+      sessionId,
+      candidateId,
+      prompt: "Make v003",
+    });
+    expect(res3.version.id).toBe("v003");
+    expect(res3.version.parentVersionId).toBe("v002");
+
+    const res4 = await coordinator.reviseCandidate({
+      sessionId,
+      candidateId,
+      prompt: "Make v004",
+    });
+    expect(res4.version.id).toBe("v004");
+    expect(res4.version.parentVersionId).toBe("v003");
+    expect(res4.candidate.currentVersionId).toBe("v004");
+    expect(res4.candidate.versions?.length).toBe(4);
+
+    // Ensure all 4 versions exist as distinct artifacts on disk
+    for (const vId of ["v001", "v002", "v003", "v004"]) {
+      const art = await sessionService.getArtifactPath(
+        sessionId,
+        "source",
+        `${candidateId}-${vId}.jsx`,
+      );
+      expect(art.filePath).toBeDefined();
+    }
+  });
+
+  test("branching from middle version v002 when v003 exists creates v004 with parentVersionId: v002", async () => {
+    let count = 1;
+    const adapter = new MockAdapter(async () => {
+      count++;
+      return {
+        rawText: JSON.stringify({
+          candidates: [
+            {
+              candidateIndex: 1,
+              label: `Branch Variant ${count}`,
+              rationale: `Rationale ${count}`,
+              jsx: `<div style={{ display: 'flex', width: 800, height: 800, backgroundColor: '#00${count}${count}00' }}><p>B${count}</p></div>`,
+            },
+          ],
+        }),
+        modelId: "mock-model",
+        durationMs: 200,
+      };
+    });
+    providerRegistry.register(adapter);
+
+    coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    // Create v002 and v003 sequentially
+    await coordinator.reviseCandidate({
+      sessionId,
+      candidateId,
+      prompt: "Go to v002",
+    });
+    const v3 = await coordinator.reviseCandidate({
+      sessionId,
+      candidateId,
+      prompt: "Go to v003",
+    });
+    expect(v3.candidate.currentVersionId).toBe("v003");
+    expect(v3.candidate.versions?.length).toBe(3);
+
+    // Restore v002 (middle version)
+    const restored = await coordinator.restoreCandidateVersion(
+      sessionId,
+      candidateId,
+      "v002",
+    );
+    expect(restored.candidate.currentVersionId).toBe("v002");
+
+    // Now branch from restored v002
+    const v4 = await coordinator.reviseCandidate({
+      sessionId,
+      candidateId,
+      prompt: "Branch from v002 into alternative v004",
+    });
+    expect(v4.version.id).toBe("v004");
+    expect(v4.version.versionNumber).toBe(4);
+    expect(v4.version.parentVersionId).toBe("v002");
+    expect(v4.candidate.currentVersionId).toBe("v004");
+    expect(v4.candidate.versions?.length).toBe(4);
+    expect(v4.candidate.versions?.map((v) => v.id)).toEqual([
+      "v001",
+      "v002",
+      "v003",
+      "v004",
+    ]);
+  });
+
+  test("handles special characters, unicode, and emojis in revision prompt end-to-end", async () => {
+    const adapter = new MockAdapter(async (req) => {
+      expect(req.prompt).toContain("🎨 Add 'bold' & \"radiant\" glow ✨");
+      return {
+        rawText: JSON.stringify({
+          candidates: [
+            {
+              candidateIndex: 1,
+              label: "Emoji & Quotes Variant",
+              rationale: "Successfully processed special chars",
+              jsx: `<div style={{ display: 'flex', width: 800, height: 800, backgroundColor: '#ffffff' }}><p>Special</p></div>`,
+            },
+          ],
+        }),
+        modelId: "mock-model",
+        durationMs: 200,
+      };
+    });
+    providerRegistry.register(adapter);
+
+    coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    const res = await coordinator.reviseCandidate({
+      sessionId,
+      candidateId,
+      prompt: "🎨 Add 'bold' & \"radiant\" glow ✨",
+    });
+
+    expect(res.version.id).toBe("v002");
+    expect(res.version.revisionPrompt).toBe(
+      "🎨 Add 'bold' & \"radiant\" glow ✨",
+    );
+  });
+
+  test("restoreCandidateVersion throws ValidationError on non-existent version or candidate", async () => {
+    coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    // Non-existent version
+    expect(
+      coordinator.restoreCandidateVersion(sessionId, candidateId, "v999"),
+    ).rejects.toThrow(ValidationError);
+
+    // Non-existent candidate
+    expect(
+      coordinator.restoreCandidateVersion(
+        sessionId,
+        "non-existent-candidate",
+        "v001",
+      ),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  test("reviseCandidate throws ValidationError on non-existent parentVersionId", async () => {
+    coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
+
+    expect(
+      coordinator.reviseCandidate({
+        sessionId,
+        candidateId,
+        prompt: "Invalid parent",
+        parentVersionId: "v999",
+      }),
+    ).rejects.toThrow(ValidationError);
+  });
 });

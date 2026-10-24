@@ -299,4 +299,100 @@ describe("Revisions HTTP API", () => {
 
     expect(res.status).toBe(404);
   });
+
+  test("POST /api/sessions/:id/candidates/:candidateId/versions/:versionId/restore returns 404 for unknown session", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/sessions/unknown-session/candidates/${candidateId}/versions/v001/restore`,
+        {
+          method: "POST",
+        },
+      ),
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  test("POST /api/sessions/:id/candidates/:candidateId/versions/:versionId/restore returns 404 for unknown candidate", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/sessions/${sessionId}/candidates/unknown-candidate/versions/v001/restore`,
+        {
+          method: "POST",
+        },
+      ),
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  test("POST /api/sessions/:id/candidates/:candidateId/revisions returns 404 for unknown session", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/sessions/unknown-session/candidates/${candidateId}/revisions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: "Valid prompt" }),
+        },
+      ),
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  test("POST multiple sequential revisions through API builds cumulative version history", async () => {
+    // Create v002
+    const resV2 = await server.fetch(
+      new Request(
+        `http://localhost/api/sessions/${sessionId}/candidates/${candidateId}/revisions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: "Revision to v002" }),
+        },
+      ),
+    );
+    expect(resV2.status).toBe(200);
+
+    // Create v003
+    const resV3 = await server.fetch(
+      new Request(
+        `http://localhost/api/sessions/${sessionId}/candidates/${candidateId}/revisions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: "Revision to v003" }),
+        },
+      ),
+    );
+    expect(resV3.status).toBe(200);
+    const dataV3 = (await resV3.json()) as {
+      candidate: Candidate;
+      version: Version;
+    };
+    expect(dataV3.version.id).toBe("v003");
+    expect(dataV3.version.parentVersionId).toBe("v002");
+    expect(dataV3.candidate.currentVersionId).toBe("v003");
+    expect(dataV3.candidate.versions?.length).toBe(3);
+
+    // Verify GET /versions reflects all 3
+    const listRes = await server.fetch(
+      new Request(
+        `http://localhost/api/sessions/${sessionId}/candidates/${candidateId}/versions`,
+      ),
+    );
+    expect(listRes.status).toBe(200);
+    const listData = (await listRes.json()) as {
+      versions: Version[];
+      currentVersionId: string;
+    };
+    expect(listData.versions.length).toBe(3);
+    expect(listData.currentVersionId).toBe("v003");
+    expect(listData.versions.map((v) => v.id)).toEqual([
+      "v001",
+      "v002",
+      "v003",
+    ]);
+  });
 });

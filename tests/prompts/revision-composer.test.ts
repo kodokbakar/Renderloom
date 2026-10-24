@@ -139,4 +139,104 @@ describe("composeRevisionPrompt", () => {
       }),
     ).rejects.toThrow(ValidationError);
   });
+
+  test("bounds conversation context to at most 4 most recent messages", async () => {
+    const messages: ConversationMessage[] = [
+      {
+        id: "m1",
+        role: "user",
+        content: "Message 1",
+        timestamp: "2026-10-24T10:00:00.000Z",
+        candidateId: "design-001",
+      },
+      {
+        id: "m2",
+        role: "assistant",
+        content: "Message 2",
+        timestamp: "2026-10-24T10:01:00.000Z",
+        candidateId: "design-001",
+      },
+      {
+        id: "m3",
+        role: "user",
+        content: "Message 3",
+        timestamp: "2026-10-24T10:02:00.000Z",
+        candidateId: "design-001",
+      },
+      {
+        id: "m4",
+        role: "assistant",
+        content: "Message 4",
+        timestamp: "2026-10-24T10:03:00.000Z",
+        candidateId: "design-001",
+      },
+      {
+        id: "m5",
+        role: "user",
+        content: "Message 5",
+        timestamp: "2026-10-24T10:04:00.000Z",
+        candidateId: "design-001",
+      },
+      {
+        id: "m6",
+        role: "assistant",
+        content: "Message 6",
+        timestamp: "2026-10-24T10:05:00.000Z",
+        candidateId: "design-001",
+      },
+    ];
+
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-001",
+      currentJsx: validJsx,
+      revisionPrompt: "Update colors",
+      styleId: "swiss",
+      conversationMessages: messages,
+    });
+
+    expect(composed.userPrompt).not.toContain("User: Message 1");
+    expect(composed.userPrompt).not.toContain("Assistant: Message 2");
+    expect(composed.userPrompt).toContain("User: Message 3");
+    expect(composed.userPrompt).toContain("Assistant: Message 4");
+    expect(composed.userPrompt).toContain("User: Message 5");
+    expect(composed.userPrompt).toContain("Assistant: Message 6");
+  });
+
+  test("truncates message content exceeding 300 characters with ellipsis", async () => {
+    const longContent = "A".repeat(400);
+    const messages: ConversationMessage[] = [
+      {
+        id: "m-long",
+        role: "user",
+        content: longContent,
+        timestamp: "2026-10-24T10:00:00.000Z",
+        candidateId: "design-001",
+      },
+    ];
+
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-001",
+      currentJsx: validJsx,
+      revisionPrompt: "Update colors",
+      styleId: "swiss",
+      conversationMessages: messages,
+    });
+
+    expect(composed.userPrompt).toContain(`User: ${"A".repeat(300)}...`);
+    expect(composed.userPrompt).not.toContain("A".repeat(301));
+  });
+
+  test("handles special characters, unicode, quotes, and HTML-like tags safely", async () => {
+    const specialPrompt = `Add a "quote", 'single', <Header> tag, \\slash & emoji: 🎨 ✨\nNew line here.`;
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-001",
+      currentJsx: validJsx,
+      revisionPrompt: specialPrompt,
+      styleId: "swiss",
+      parentVersionId: "v001",
+    });
+
+    expect(composed.userPrompt).toContain(specialPrompt);
+    expect(composed.effectivePrompt).toContain(specialPrompt);
+  });
 });
