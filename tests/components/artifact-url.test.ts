@@ -65,4 +65,39 @@ describe("buildArtifactUrl & validation", () => {
     expect(isValidArtifactFilename("")).toBe(false);
     expect(isValidArtifactFilename("  ")).toBe(false);
   });
+
+  test("rejects overlong session ID and filename boundary limits", () => {
+    const longSessionId = "a".repeat(201);
+    expect(isValidSessionId(longSessionId)).toBe(false);
+    expect(() =>
+      buildArtifactUrl(longSessionId, "images", "valid.png"),
+    ).toThrow();
+
+    const longFilename = "b".repeat(256);
+    expect(isValidArtifactFilename(longFilename)).toBe(false);
+    expect(() =>
+      buildArtifactUrl("valid-session", "images", longFilename),
+    ).toThrow();
+  });
+
+  test("accepts complex valid filenames with dots, dashes, and timestamps", () => {
+    const name = "card.variant-01.v002_final.min.svg";
+    expect(isValidArtifactFilename(name)).toBe(true);
+    const url = buildArtifactUrl("session-uuid-123_abc", "svg", name);
+    expect(url).toBe(
+      "/api/sessions/session-uuid-123_abc/artifacts/svg/card.variant-01.v002_final.min.svg",
+    );
+  });
+
+  test("rejects encoded traversal sequences and null bytes in filenames", () => {
+    expect(() =>
+      buildArtifactUrl("sess-1", "images", "%2e%2e%5csecret.png"),
+    ).toThrow();
+    expect(() =>
+      buildArtifactUrl("sess-1", "images", "normal%00file.png"),
+    ).toThrow();
+    expect(() =>
+      buildArtifactUrl("sess-1", "images", "..%2f..%2fetc%2fpasswd"),
+    ).toThrow();
+  });
 });

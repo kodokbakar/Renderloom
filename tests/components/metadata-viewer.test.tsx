@@ -75,4 +75,24 @@ describe("MetadataViewer", () => {
     expect(html).toContain("1.1s"); // PNG rendering duration (1100ms)
     expect(html).toContain("<dt>Retries</dt><dd>1</dd>");
   });
+
+  test("handles candidate with missing timings, session, label, and rationale gracefully", () => {
+    const minimalCandidate: Candidate = {
+      id: "cand-min",
+      sessionId: "sess-99",
+      index: 1,
+      state: "queued",
+      createdAt: "2026-10-24T12:00:00.000Z",
+      updatedAt: "2026-10-24T12:00:00.000Z",
+    };
+
+    const html = renderToStaticMarkup(
+      <MetadataViewer candidate={minimalCandidate} session={undefined} />,
+    );
+
+    expect(html).toContain("cand-min");
+    expect(html).toContain("v1");
+    expect(html).toContain("—"); // Unspecified duration
+    expect(html).not.toContain("Optimized for visual hierarchy");
+  });
 });

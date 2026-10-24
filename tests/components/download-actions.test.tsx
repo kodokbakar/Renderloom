@@ -51,4 +51,57 @@ describe("DownloadActions", () => {
     expect(html).toContain("Downloads unavailable until generation completes.");
     expect(html).not.toContain("btn-download");
   });
+
+  test("shows notice when candidate is cancelled or queued", () => {
+    const queuedCand: Candidate = {
+      ...mockCompletedCandidate,
+      state: "queued",
+    };
+    const cancelledCand: Candidate = {
+      ...mockCompletedCandidate,
+      state: "cancelled",
+    };
+
+    expect(
+      renderToStaticMarkup(
+        <DownloadActions sessionId="sess-1" candidate={queuedCand} />,
+      ),
+    ).toContain("Downloads unavailable until generation completes.");
+
+    expect(
+      renderToStaticMarkup(
+        <DownloadActions sessionId="sess-1" candidate={cancelledCand} />,
+      ),
+    ).toContain("Downloads unavailable until generation completes.");
+  });
+
+  test("handles partial artifacts (e.g. PNG only) safely", () => {
+    const partialCand: Candidate = {
+      ...mockCompletedCandidate,
+      artifacts: {
+        pngPath: "images/only-png.png",
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <DownloadActions sessionId="sess-1" candidate={partialCand} />,
+    );
+
+    expect(html).toContain('download="only-png.png"');
+    expect(html).not.toContain(".svg");
+    expect(html).not.toContain(".tsx");
+  });
+
+  test("handles completed candidate with empty artifacts object", () => {
+    const emptyArtifactsCand: Candidate = {
+      ...mockCompletedCandidate,
+      artifacts: {},
+    };
+
+    const html = renderToStaticMarkup(
+      <DownloadActions sessionId="sess-1" candidate={emptyArtifactsCand} />,
+    );
+
+    expect(html).toContain("No downloadable artifacts found.");
+  });
 });

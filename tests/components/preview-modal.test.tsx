@@ -71,4 +71,79 @@ describe("PreviewModal", () => {
     expect(html).toContain("Download Artifacts:");
     expect(html).toContain("Version &amp; Identity");
   });
+
+  test("omits previous button when hasPrev is false, and next button when hasNext is false", () => {
+    const firstCandHtml = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={mockCandidate}
+        session={mockSession}
+        onClose={() => {}}
+        onPrevCandidate={() => {}}
+        onNextCandidate={() => {}}
+        hasNext={true}
+        hasPrev={false}
+      />,
+    );
+    expect(firstCandHtml).not.toContain('aria-label="Previous Candidate"');
+    expect(firstCandHtml).toContain('aria-label="Next Candidate"');
+
+    const lastCandHtml = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={mockCandidate}
+        session={mockSession}
+        onClose={() => {}}
+        onPrevCandidate={() => {}}
+        onNextCandidate={() => {}}
+        hasNext={false}
+        hasPrev={true}
+      />,
+    );
+    expect(lastCandHtml).toContain('aria-label="Previous Candidate"');
+    expect(lastCandHtml).not.toContain('aria-label="Next Candidate"');
+
+    const singleCandHtml = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={mockCandidate}
+        session={mockSession}
+        onClose={() => {}}
+        onPrevCandidate={() => {}}
+        onNextCandidate={() => {}}
+        hasNext={false}
+        hasPrev={false}
+      />,
+    );
+    expect(singleCandHtml).not.toContain('aria-label="Previous Candidate"');
+    expect(singleCandHtml).not.toContain('aria-label="Next Candidate"');
+  });
+
+  test("renders sanitized ErrorCard and image fallback when candidate is failed", () => {
+    const failedCand: Candidate = {
+      ...mockCandidate,
+      state: "failed",
+      errorCode: "RENDER_FAILED",
+      errorMessage:
+        "Satori render failed: /home/dokbakar/font.ttf invalid glyph",
+    };
+
+    const html = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={failedCand}
+        session={mockSession}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(html).toContain("RENDER_FAILED");
+    expect(html).toContain("Satori render failed: [FILE_PATH] invalid glyph");
+    expect(html).not.toContain("/home/dokbakar/font.ttf");
+    expect(html).toContain("Image unavailable");
+  });
 });

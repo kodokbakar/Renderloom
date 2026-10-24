@@ -107,4 +107,38 @@ describe("CandidateGallery", () => {
     expect(html).toContain("gallery-notice-banner warning");
     expect(html).toContain("None of the candidates completed successfully");
   });
+
+  test("does not show warning notice when at least one candidate succeeded", () => {
+    const mixedCandidates: Candidate[] = [
+      {
+        id: "c-success",
+        sessionId: "s-1",
+        index: 0,
+        state: "completed",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "c-fail",
+        sessionId: "s-1",
+        index: 1,
+        state: "failed",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <CandidateGallery
+        candidates={mixedCandidates}
+        sessionId="s-1"
+        selectedCandidateId={undefined}
+        onSelectCandidate={() => {}}
+      />,
+    );
+
+    expect(html).not.toContain("batch-failure-notice");
+    expect(html).toContain('data-candidate-id="c-success"');
+    expect(html).toContain('data-candidate-id="c-fail"');
+  });
 });

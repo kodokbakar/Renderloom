@@ -103,4 +103,70 @@ describe("CandidateCard", () => {
 
     expect(html).toContain("Candidate #3");
   });
+
+  test("renders cancelled candidate with cancelled message and retry action", () => {
+    const cancelledCand: Candidate = {
+      ...baseCandidate,
+      id: "c-cancel",
+      state: "cancelled",
+    };
+    const html = renderToStaticMarkup(
+      <CandidateCard
+        candidate={cancelledCand}
+        sessionId="sess-abc"
+        onRetry={() => {}}
+      />,
+    );
+
+    expect(html).toContain('data-candidate-state="cancelled"');
+    expect(html).toContain("Generation cancelled");
+    expect(html).toContain("btn-card-retry");
+  });
+
+  test("renders fallback when completed candidate is missing image artifacts", () => {
+    const noArtifactsCand: Candidate = {
+      ...baseCandidate,
+      artifacts: undefined,
+    };
+    const html = renderToStaticMarkup(
+      <CandidateCard candidate={noArtifactsCand} sessionId="sess-abc" />,
+    );
+
+    expect(html).toContain("Artifact unavailable");
+  });
+
+  test("renders all in-progress states with appropriate progress messages", () => {
+    const states = [
+      { state: "queued" as const, expected: "Queued..." },
+      { state: "generating" as const, expected: "Generating code..." },
+      { state: "rendering" as const, expected: "Rendering PNG..." },
+    ];
+
+    for (const { state, expected } of states) {
+      const cand: Candidate = { ...baseCandidate, state };
+      const html = renderToStaticMarkup(
+        <CandidateCard candidate={cand} sessionId="sess-abc" />,
+      );
+      expect(html).toContain(expected);
+    }
+  });
+
+  test("handles extremely long label and rationale without error", () => {
+    const longLabel = "Extreme Long Candidate Label ".repeat(10).trim();
+    const longRationale = "Deep rationale explaining design details "
+      .repeat(20)
+      .trim();
+    const longCand: Candidate = {
+      ...baseCandidate,
+      label: longLabel,
+      rationale: longRationale,
+    };
+
+    const html = renderToStaticMarkup(
+      <CandidateCard candidate={longCand} sessionId="sess-abc" />,
+    );
+
+    expect(html).toContain(longLabel);
+    expect(html).toContain(longRationale);
+  });
 });

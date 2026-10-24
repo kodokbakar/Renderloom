@@ -78,4 +78,35 @@ describe("sanitizeErrorMessage", () => {
     const quotaErr = "Provider quota exceeded (429)";
     expect(sanitizeErrorMessage(quotaErr)).toBe(quotaErr);
   });
+
+  test("redacts multiple leaked secrets in a single error message", () => {
+    const combo =
+      "Anthropic: sk-ant-api03-abcdefghijklmnop1234, OpenAI: sk-proj-1234567890abcdef123456, Auth: Bearer myToken1234567890";
+    const sanitized = sanitizeErrorMessage(combo);
+    expect(sanitized).toBe(
+      "Anthropic: [REDACTED_API_KEY], OpenAI: [REDACTED_API_KEY], Auth: Bearer [REDACTED_TOKEN]",
+    );
+    expect(sanitized).not.toContain("sk-ant-");
+    expect(sanitized).not.toContain("sk-proj-");
+    expect(sanitized).not.toContain("myToken");
+  });
+
+  test("redacts system paths across /tmp, /etc, /var, and /usr", () => {
+    expect(sanitizeErrorMessage("Failed to read /etc/ssl/certs/ca.pem")).toBe(
+      "Failed to read [FILE_PATH]",
+    );
+    expect(sanitizeErrorMessage("Crash dumped to /tmp/crash-dump.log")).toBe(
+      "Crash dumped to [FILE_PATH]",
+    );
+    expect(sanitizeErrorMessage("Missing binary at /usr/local/bin/resvg")).toBe(
+      "Missing binary at [FILE_PATH]",
+    );
+  });
+
+  test("handles non-standard object error formats via JSON serialization", () => {
+    const weirdObj = { code: 500, detail: "sk-abcdefghijklmnopqrstuvwxyz" };
+    const sanitized = sanitizeErrorMessage(weirdObj);
+    expect(sanitized).toContain("[REDACTED_API_KEY]");
+    expect(sanitized).not.toContain("sk-abcdefghijklmnop");
+  });
 });

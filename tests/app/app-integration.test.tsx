@@ -200,4 +200,106 @@ describe("App Studio Workspace Integration", () => {
     expect(html).toContain("empty-state-generating");
     expect(html).toContain("Generating candidates");
   });
+
+  test("candidate preview and version identity correspond to the exact selected version", () => {
+    const multiVersionSession: FullSession = {
+      ...mockFullSession,
+      session: {
+        ...mockFullSession.session,
+        candidates: [
+          {
+            id: "cand-v1",
+            sessionId: "session-alpha",
+            index: 0,
+            state: "completed",
+            currentVersionId: "cand-v1-ver-1",
+            label: "Candidate Version 1",
+            artifacts: {
+              pngPath: "images/cand-v1-ver-1.png",
+              sourcePath: "source/cand-v1-ver-1.tsx",
+              svgPath: "svg/cand-v1-ver-1.svg",
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: "cand-v2",
+            sessionId: "session-alpha",
+            index: 1,
+            state: "completed",
+            currentVersionId: "cand-v2-ver-2",
+            label: "Candidate Version 2",
+            artifacts: {
+              pngPath: "images/cand-v2-ver-2.png",
+              sourcePath: "source/cand-v2-ver-2.tsx",
+              svgPath: "svg/cand-v2-ver-2.svg",
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    };
+
+    // 1. Initial selection: cand-v1
+    const htmlV1 = renderToStaticMarkup(
+      <App
+        initialFullSession={multiVersionSession}
+        initialSessions={mockSessions}
+        initialSelectedCandidateId="cand-v1"
+      />,
+    );
+
+    expect(htmlV1).toContain(
+      "/api/sessions/session-alpha/artifacts/images/cand-v1-ver-1.png",
+    );
+    expect(htmlV1).toContain("Candidate Version 1");
+
+    // 2. Selection: cand-v2
+    const htmlV2 = renderToStaticMarkup(
+      <App
+        initialFullSession={multiVersionSession}
+        initialSessions={mockSessions}
+        initialSelectedCandidateId="cand-v2"
+      />,
+    );
+
+    expect(htmlV2).toContain(
+      "/api/sessions/session-alpha/artifacts/images/cand-v2-ver-2.png",
+    );
+    expect(htmlV2).toContain("Candidate Version 2");
+  });
+
+  test("renders cancelled candidate properly alongside completed candidates", () => {
+    const sessionWithCancelled: FullSession = {
+      ...mockFullSession,
+      session: {
+        ...mockFullSession.session,
+        candidates: [
+          ...mockCandidates,
+          {
+            id: "cand-3",
+            sessionId: "session-alpha",
+            index: 2,
+            state: "cancelled",
+            label: "Variant C - Cancelled",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      <App
+        initialFullSession={sessionWithCancelled}
+        initialSessions={mockSessions}
+        initialSelectedCandidateId="cand-3"
+      />,
+    );
+
+    expect(html).toContain('data-candidate-id="cand-3"');
+    expect(html).toContain("Variant C - Cancelled");
+    expect(html).toContain("Generation cancelled");
+  });
 });

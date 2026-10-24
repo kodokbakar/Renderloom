@@ -64,4 +64,51 @@ describe("syntax-tokenizer", () => {
     expect(lines[1]?.some((t) => t.value === "<path")).toBe(true);
     expect(lines[2]?.some((t) => t.value === "</svg>")).toBe(true);
   });
+
+  test("tokenizes deeply nested JSX hierarchy and JSX block/line comments", () => {
+    const jsx = `/* Outer Component */\n<div style={{ display: 'flex' }}>\n  // Inner section\n  <header>\n    <h1 title="Welcome">Title</h1>\n  </header>\n  <span>Text</span>\n</div>`;
+    const tokens = tokenizeJsxOrSvg(jsx, "jsx");
+
+    const tags = tokens.filter((t) => t.type === "tag").map((t) => t.value);
+    expect(tags).toContain("<div");
+    expect(tags).toContain("<header");
+    expect(tags).toContain("<h1");
+    expect(tags).toContain("</h1>");
+    expect(tags).toContain("</header>");
+    expect(tags).toContain("<span");
+    expect(tags).toContain("</span>");
+    expect(tags).toContain("</div>");
+
+    const comments = tokens
+      .filter((t) => t.type === "comment")
+      .map((t) => t.value);
+    expect(comments).toContain("/* Outer Component */");
+    expect(comments).toContain("// Inner section");
+  });
+
+  test("tokenizes numbers with units and template literals in JSX", () => {
+    const snippet =
+      "const template = `card-hero`; const width = 100px; const opacity = 0.5; const rem = 2.5rem;";
+    const tokens = tokenizeJsxOrSvg(snippet, "jsx");
+
+    const strings = tokens
+      .filter((t) => t.type === "string")
+      .map((t) => t.value);
+    expect(strings).toContain("`card-hero`");
+
+    const numbers = tokens
+      .filter((t) => t.type === "number")
+      .map((t) => t.value);
+    expect(numbers).toContain("100px");
+    expect(numbers).toContain("0.5");
+    expect(numbers).toContain("2.5rem");
+  });
+
+  test("handles malformed or unclosed syntax gracefully without throwing", () => {
+    const broken = '<div unclosed="string and <!-- unclosed comment';
+    const tokens = tokenizeJsxOrSvg(broken, "jsx");
+    expect(tokens.length).toBeGreaterThan(0);
+    const reconstructed = tokens.map((t) => t.value).join("");
+    expect(reconstructed).toBe(broken);
+  });
 });
