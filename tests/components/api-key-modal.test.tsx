@@ -64,4 +64,17 @@ describe("ApiKeyModal", () => {
     expect(html).toContain('data-testid="baseurl-input-anthropic"');
     expect(html).not.toContain('data-testid="baseurl-input-openai"');
   });
+
+  test("renders close button and done button controls", () => {
+    const html = renderToStaticMarkup(
+      <ApiKeyModal
+        isOpen={true}
+        onClose={() => {}}
+        initialProviders={mockProviders}
+      />,
+    );
+
+    expect(html).toContain('data-testid="api-key-close-btn"');
+    expect(html).toContain('data-testid="api-key-modal-done"');
+  });
 });

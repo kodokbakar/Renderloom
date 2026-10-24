@@ -59,6 +59,29 @@ if (process.env.PLAYWRIGHT_TEST) {
       await expect(cards).toHaveCount(2);
     });
 
+    test("displays empty state when search query matches no sessions", async ({
+      page,
+    }) => {
+      const searchInput = page.locator('[data-testid="session-search-input"]');
+      await searchInput.fill("nonexistent-search-term-12345");
+
+      const emptyState = page.locator('[data-testid="dashboard-empty-state"]');
+      await expect(emptyState).toBeVisible();
+      await expect(emptyState.locator(".empty-title")).toHaveText(
+        "No matching sessions",
+      );
+      await expect(emptyState.locator(".empty-desc")).toContainText(
+        'No sessions found matching "nonexistent-search-term-12345".',
+      );
+
+      // Cards should not be rendered
+      await expect(page.locator('[data-testid="session-card"]')).toHaveCount(0);
+
+      // Clearing search restores sessions
+      await searchInput.fill("");
+      await expect(page.locator('[data-testid="session-card"]')).toHaveCount(2);
+    });
+
     test("filters sessions by style preset dropdown", async ({ page }) => {
       const styleSelect = page.locator('[data-testid="style-filter-select"]');
       await styleSelect.selectOption("tech-minimal");

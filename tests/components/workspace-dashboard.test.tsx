@@ -74,4 +74,20 @@ describe("WorkspaceDashboard", () => {
     expect(html).toContain("No sessions yet");
     expect(html).toContain('data-testid="dashboard-empty-state"');
   });
+
+  test("renders loading indicator when isLoading is true", () => {
+    const html = renderToStaticMarkup(
+      <WorkspaceDashboard
+        sessions={[]}
+        isLoading={true}
+        onOpenSession={() => {}}
+        onNewSession={() => {}}
+        onOpenApiKeys={() => {}}
+        onDeleteSession={() => {}}
+      />,
+    );
+
+    expect(html).toContain('data-testid="dashboard-loading"');
+    expect(html).toContain("Loading sessions...");
+  });
 });

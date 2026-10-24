@@ -35,4 +35,18 @@ describe("NewSessionModal", () => {
     expect(html).toContain('data-testid="create-session-submit"');
     expect(html).toContain('data-testid="create-session-cancel"');
   });
+
+  test("disables actions and displays Launching... when isLoading is true", () => {
+    const html = renderToStaticMarkup(
+      <NewSessionModal
+        isOpen={true}
+        isLoading={true}
+        onClose={() => {}}
+        onCreate={async () => {}}
+      />,
+    );
+
+    expect(html).toContain("Launching...");
+    expect(html).toContain("disabled");
+  });
 });
