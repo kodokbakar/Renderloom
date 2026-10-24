@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { existsSync } from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -309,6 +310,151 @@ describe("Filesystem Resilience and Interrupted Write Suite", () => {
       expect(reopenedCand2?.errorMessage).toContain(
         "disk full during candidate 2",
       );
+    });
+
+    test("handles 3-candidate batch where middle candidate fails and surrounding succeed", async () => {
+      const sessionService = new SessionService(tempBaseDir);
+      const session = await sessionService.createSession({
+        name: "3-Candidate Resilience Session",
+        providerId: "anthropic",
+        modelId: "claude-3-7-sonnet-20250219",
+        styleId: "editorial",
+        width: 1200,
+        height: 630,
+        aspectRatio: "16:9",
+      });
+
+      // Candidate 1 succeeds
+      const c1Id = "cand-101";
+      await sessionService.saveArtifact(
+        session.id,
+        "images",
+        `${c1Id}-v001.png`,
+        Buffer.from("PNG_101"),
+      );
+      await sessionService.saveCandidate(session.id, {
+        id: c1Id,
+        sessionId: session.id,
+        index: 0,
+        label: "Candidate 1",
+        state: "completed",
+        artifacts: {
+          pngPath: path.join("images", `${c1Id}-v001.png`),
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Candidate 2 fails
+      const c2Id = "cand-102";
+      const origWrite = fsPromises.writeFile;
+      const writeSpy = spyOn(fsPromises, "writeFile").mockImplementation(
+        async (file, data, ...rest) => {
+          if (typeof file === "string" && file.includes(c2Id)) {
+            const err = Object.assign(new Error("EIO: hardware write fault"), {
+              code: "EIO",
+            });
+            throw err;
+          }
+          return origWrite(file, data, ...rest);
+        },
+      );
+
+      try {
+        await expect(
+          sessionService.saveArtifact(
+            session.id,
+            "images",
+            `${c2Id}-v001.png`,
+            Buffer.from("PNG_102"),
+          ),
+        ).rejects.toThrow("EIO");
+
+        await sessionService.saveCandidate(session.id, {
+          id: c2Id,
+          sessionId: session.id,
+          index: 1,
+          label: "Candidate 2",
+          state: "failed",
+          errorMessage: "EIO: hardware write fault",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      } finally {
+        writeSpy.mockRestore();
+      }
+
+      // Candidate 3 succeeds
+      const c3Id = "cand-103";
+      await sessionService.saveArtifact(
+        session.id,
+        "images",
+        `${c3Id}-v001.png`,
+        Buffer.from("PNG_103"),
+      );
+      await sessionService.saveCandidate(session.id, {
+        id: c3Id,
+        sessionId: session.id,
+        index: 2,
+        label: "Candidate 3",
+        state: "completed",
+        artifacts: {
+          pngPath: path.join("images", `${c3Id}-v001.png`),
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Reopen session
+      const reopened = await sessionService.getSession(session.id);
+      expect(reopened.session.candidates?.length).toBe(3);
+
+      const c1 = reopened.session.candidates?.[0];
+      const c2 = reopened.session.candidates?.[1];
+      const c3 = reopened.session.candidates?.[2];
+
+      expect(c1?.id).toBe(c1Id);
+      expect(c1?.state).toBe("completed");
+      expect(c2?.id).toBe(c2Id);
+      expect(c2?.state).toBe("failed");
+      expect(c3?.id).toBe(c3Id);
+      expect(c3?.state).toBe("completed");
+
+      const p1 = await sessionService.getArtifactPath(
+        session.id,
+        "images",
+        `${c1Id}-v001.png`,
+      );
+      expect(await readFile(p1.filePath, "utf-8")).toBe("PNG_101");
+
+      const p3 = await sessionService.getArtifactPath(
+        session.id,
+        "images",
+        `${c3Id}-v001.png`,
+      );
+      expect(await readFile(p3.filePath, "utf-8")).toBe("PNG_103");
+    });
+
+    test("recursively cleans up orphaned temp files in nested subdirectories", async () => {
+      const subDirA = path.join(tempBaseDir, "images");
+      const subDirB = path.join(tempBaseDir, "svg");
+      await fsPromises.mkdir(subDirA, { recursive: true });
+      await fsPromises.mkdir(subDirB, { recursive: true });
+
+      const orphan1 = path.join(subDirA, ".cand1.png.abc.tmp");
+      const orphan2 = path.join(subDirB, ".cand2.svg.xyz.tmp");
+      const normal = path.join(subDirA, "healthy.png");
+
+      await writeFile(orphan1, "stale-temp-1");
+      await writeFile(orphan2, "stale-temp-2");
+      await writeFile(normal, "healthy-file");
+
+      const cleaned = await cleanupOrphanedTempFiles(tempBaseDir);
+      expect(cleaned).toBe(2);
+
+      expect(existsSync(orphan1)).toBe(false);
+      expect(existsSync(orphan2)).toBe(false);
+      expect(existsSync(normal)).toBe(true);
     });
   });
 });

@@ -179,4 +179,56 @@ describe("Structured Logger", () => {
     expect(isolatedEntries.length).toBe(1);
     expect(isolatedEntries[0]?.message).toBe("Critical failure");
   });
+
+  test("handles dynamic sink switching and setting sink to null", () => {
+    const sinkA: LogEntry[] = [];
+    const sinkB: LogEntry[] = [];
+
+    setLogSink((entry) => sinkA.push(entry));
+    logger.info("Message for sink A");
+
+    setLogSink((entry) => sinkB.push(entry));
+    logger.info("Message for sink B");
+
+    setLogSink(null);
+    expect(() => logger.info("Message for console fallback")).not.toThrow();
+
+    expect(sinkA.length).toBe(1);
+    expect(sinkA[0]?.message).toBe("Message for sink A");
+
+    expect(sinkB.length).toBe(1);
+    expect(sinkB[0]?.message).toBe("Message for sink B");
+  });
+
+  test("redacts sensitive keys in arrays and header variations", () => {
+    logger.info("Headers and arrays", {
+      data: {
+        "Set-Cookie": "session_token_123456",
+        "X-Api-Key": "api_secret_abcdef",
+        Bearer: "bearer_token_xyz",
+        Authorization: "Basic user:pass",
+        items: [
+          { id: 1, apiKey: "secret_1", note: "public" },
+          { id: 2, password: "secret_password", count: 10 },
+        ],
+      },
+    });
+
+    expect(capturedEntries.length).toBe(1);
+    const data = capturedEntries[0]?.data as Record<string, unknown>;
+    expect(data["Set-Cookie"]).toBe("[REDACTED]");
+    expect(data["X-Api-Key"]).toBe("[REDACTED]");
+    expect(data.Bearer).toBe("[REDACTED]");
+    expect(data.Authorization).toBe("[REDACTED]");
+
+    const items = data.items as Array<Record<string, unknown>>;
+    expect(items[0]?.apiKey).toBe("[REDACTED]");
+    expect(items[0]?.note).toBe("public");
+    expect(items[1]?.password).toBe("[REDACTED]");
+    expect(items[1]?.count).toBe(10);
+
+    expect(capturedRawJson[0]).not.toContain("session_token_123456");
+    expect(capturedRawJson[0]).not.toContain("api_secret_abcdef");
+    expect(capturedRawJson[0]).not.toContain("secret_password");
+  });
 });

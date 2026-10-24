@@ -198,6 +198,38 @@ describe("Malicious Source Penetration Test Suite", () => {
         );
       }
     });
+
+    test("rejects case variants and quoted keys for prototype pollution", () => {
+      expect(() => validateJsx(`<div __Proto__="bad">Hello</div>`)).toThrow(
+        RenderError,
+      );
+      expect(() => validateJsx(`<div CONSTRUCTOR="bad">Hello</div>`)).toThrow(
+        RenderError,
+      );
+      expect(() => validateJsx(`<div ProtoType="bad">Hello</div>`)).toThrow(
+        RenderError,
+      );
+      expect(() => validateJsx(`<div __PROTO__="bad">Hello</div>`)).toThrow(
+        RenderError,
+      );
+
+      expect(() =>
+        validateJsx(`<div style={{ "__proto__": "bad" }}>Hello</div>`),
+      ).toThrow(RenderError);
+      expect(() =>
+        validateJsx(`<div style={{ "__PROTO__": "bad" }}>Hello</div>`),
+      ).toThrow(RenderError);
+      expect(() =>
+        validateJsx(`<div style={{ "CoNsTrUcToR": "bad" }}>Hello</div>`),
+      ).toThrow(RenderError);
+      expect(() =>
+        validateJsx(`<div style={{ "PROTOTYPE": "bad" }}>Hello</div>`),
+      ).toThrow(RenderError);
+
+      const protoRec = Object.prototype as Record<string, unknown>;
+      expect(protoRec.bad).toBeUndefined();
+      expect(protoRec.polluted).toBeUndefined();
+    });
   });
 
   describe("Event Handlers and Case Variations", () => {
@@ -228,6 +260,21 @@ describe("Malicious Source Penetration Test Suite", () => {
       );
       expect(() =>
         validateJsx(`<div onAnimationEnd="alert(1)">Hello</div>`),
+      ).toThrow(RenderError);
+    });
+
+    test("rejects focus, blur, keyboard, and SVG event handlers", () => {
+      expect(() => validateJsx("<div onFocus={() => {}}>Hello</div>")).toThrow(
+        RenderError,
+      );
+      expect(() => validateJsx(`<div onBlur="alert(1)">Hello</div>`)).toThrow(
+        RenderError,
+      );
+      expect(() =>
+        validateJsx(`<div onKeyDown="alert(1)">Hello</div>`),
+      ).toThrow(RenderError);
+      expect(() =>
+        validateJsx(`<svg onload="alert(1)"><path onclick="alert(2)" /></svg>`),
       ).toThrow(RenderError);
     });
   });
@@ -269,6 +316,24 @@ describe("Malicious Source Penetration Test Suite", () => {
         const code = `<div><${tag} /></div>`;
         expect(() => validateJsx(code)).toThrow(RenderError);
       }
+    });
+
+    test("rejects uppercase and mixed-case dangerous tags", () => {
+      expect(() => validateJsx("<div><SCRIPT>alert(1)</SCRIPT></div>")).toThrow(
+        RenderError,
+      );
+      expect(() => validateJsx(`<div><IFRAME src="evil" /></div>`)).toThrow(
+        RenderError,
+      );
+      expect(() => validateJsx(`<div><OBJECT data="evil" /></div>`)).toThrow(
+        RenderError,
+      );
+      expect(() => validateJsx(`<div><EMBED src="evil" /></div>`)).toThrow(
+        RenderError,
+      );
+      expect(() =>
+        validateJsx("<div><STYLE>body { display: none; }</STYLE></div>"),
+      ).toThrow(RenderError);
     });
   });
 
@@ -364,6 +429,19 @@ describe("Malicious Source Penetration Test Suite", () => {
       expect(() =>
         validateJsx(
           `<div style={{ backgroundImage: "url('//evil.com/pic.png')" }}>Hello</div>`,
+        ),
+      ).toThrow(RenderError);
+    });
+
+    test("rejects whitespace-padded and mixed-case URL schemes", () => {
+      expect(() =>
+        validateJsx(
+          `<div style={{ display: "flex" }}><img src="   JaVaScRiPt:alert(1)   " /></div>`,
+        ),
+      ).toThrow(RenderError);
+      expect(() =>
+        validateJsx(
+          `<div style={{ display: "flex" }}><img src="VBSCRIPT:alert(1)" /></div>`,
         ),
       ).toThrow(RenderError);
     });

@@ -83,6 +83,36 @@ describe("Renderer Resource Limits and Security Guards", () => {
         await rm(tempDir, { recursive: true, force: true });
       }
     });
+
+    test("verifies exact byte limit boundary for data URLs", () => {
+      const exactBuffer = Buffer.alloc(MAX_ASSET_BYTES, "a");
+      const exactUri = `data:image/png;base64,${exactBuffer.toString("base64")}`;
+      expect(() => validateAssetSource(exactUri)).not.toThrow();
+
+      const overBuffer = Buffer.alloc(MAX_ASSET_BYTES + 1, "a");
+      const overUri = `data:image/png;base64,${overBuffer.toString("base64")}`;
+      expect(() => validateAssetSource(overUri)).toThrow(RenderError);
+    });
+
+    test("verifies exact byte limit boundary for filesystem assets", async () => {
+      const tempDir = await mkdtemp(
+        path.join(tmpdir(), "renderloom-asset-exact-"),
+      );
+      try {
+        const exactFile = path.join(tempDir, "exact.png");
+        await writeFile(exactFile, Buffer.alloc(MAX_ASSET_BYTES));
+        const resolved = await resolveAssetToDataUri("exact.png", tempDir);
+        expect(resolved.length).toBeGreaterThan(0);
+
+        const overFile = path.join(tempDir, "over.png");
+        await writeFile(overFile, Buffer.alloc(MAX_ASSET_BYTES + 1));
+        await expect(
+          resolveAssetToDataUri("over.png", tempDir),
+        ).rejects.toThrow(RenderError);
+      } finally {
+        await rm(tempDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("AST Depth Limits", () => {
@@ -118,6 +148,20 @@ describe("Renderer Resource Limits and Security Guards", () => {
         );
       }
     });
+
+    test("verifies exact AST depth boundary condition", () => {
+      let okBomb = "<span>Leaf</span>";
+      for (let i = 0; i < 59; i++) {
+        okBomb = `<div>${okBomb}</div>`;
+      }
+      expect(() => validateJsx(okBomb)).not.toThrow();
+
+      let exceedBomb = "<span>Leaf</span>";
+      for (let i = 0; i < 60; i++) {
+        exceedBomb = `<div>${exceedBomb}</div>`;
+      }
+      expect(() => validateJsx(exceedBomb)).toThrow(RenderError);
+    });
   });
 
   describe("AST Node Count Limits", () => {
@@ -140,6 +184,22 @@ describe("Renderer Resource Limits and Security Guards", () => {
           "AST node count exceeds maximum allowed limit",
         );
       }
+    });
+
+    test("verifies exact AST node count boundary condition", () => {
+      const okSpans: string[] = [];
+      for (let i = 0; i < 284; i++) {
+        okSpans.push(`<span>${i}</span>`);
+      }
+      expect(() => validateJsx(`<div>${okSpans.join("")}</div>`)).not.toThrow();
+
+      const overSpans: string[] = [];
+      for (let i = 0; i < 285; i++) {
+        overSpans.push(`<span>${i}</span>`);
+      }
+      expect(() => validateJsx(`<div>${overSpans.join("")}</div>`)).toThrow(
+        RenderError,
+      );
     });
   });
 
@@ -265,6 +325,40 @@ describe("Renderer Resource Limits and Security Guards", () => {
       } finally {
         spy.mockRestore();
       }
+    });
+
+    test("allows disabling timer race when timeoutMs <= 0", async () => {
+      const dummyVNode: VNode = {
+        type: "div",
+        props: {
+          style: { display: "flex", width: "100%", height: "100%" },
+          children: "Zero Timeout Test",
+        },
+      };
+
+      const result = await renderVNode(dummyVNode, {
+        width: 100,
+        height: 100,
+        timeoutMs: 0,
+      });
+      expect(result.svg).toBeDefined();
+    });
+
+    test("completes successfully when layout finishes well within timeoutMs", async () => {
+      const dummyVNode: VNode = {
+        type: "div",
+        props: {
+          style: { display: "flex", width: "100%", height: "100%" },
+          children: "Healthy Timeout Test",
+        },
+      };
+
+      const result = await renderVNode(dummyVNode, {
+        width: 100,
+        height: 100,
+        timeoutMs: 5000,
+      });
+      expect(result.png.byteLength).toBeGreaterThan(0);
     });
   });
 
