@@ -6,6 +6,7 @@ import {
   type BatchSummary,
   type Candidate,
   type Conversation,
+  type ConversationMessage,
   type CreateSessionRequest,
   type FullSession,
   type GenerationConfig,
@@ -14,6 +15,7 @@ import {
   type SessionArtifacts,
   SessionError,
   type SessionSummary,
+  type Version,
 } from "../domain";
 import { loadBasePrompt } from "../prompts/loader";
 import {
@@ -51,6 +53,46 @@ export function getMimeType(filename: string): string {
     default:
       return "application/octet-stream";
   }
+}
+export function hydrateCandidateVersions(
+  candidate: Candidate,
+  promptSnapshot?: string,
+): Candidate {
+  if (candidate.state !== "completed") {
+    return candidate;
+  }
+  if (candidate.versions && candidate.versions.length > 0) {
+    return candidate;
+  }
+  const versionId = candidate.currentVersionId || "v001";
+  const jsxSourcePath =
+    candidate.artifacts?.sourcePath ||
+    `source/${candidate.id}-${versionId}.jsx`;
+  const svgPath =
+    candidate.artifacts?.svgPath || `svg/${candidate.id}-${versionId}.svg`;
+  const pngPath =
+    candidate.artifacts?.pngPath || `images/${candidate.id}-${versionId}.png`;
+  const createdAt =
+    candidate.timings?.completedAt ||
+    candidate.updatedAt ||
+    candidate.createdAt;
+
+  const initialVersion: Version = {
+    id: versionId,
+    candidateId: candidate.id,
+    versionNumber: 1,
+    promptSnapshot: promptSnapshot || "",
+    jsxSourcePath,
+    svgPath,
+    pngPath,
+    createdAt,
+    label: candidate.label,
+    rationale: candidate.rationale,
+  };
+
+  candidate.currentVersionId = versionId;
+  candidate.versions = [initialVersion];
+  return candidate;
 }
 
 export class SessionService {
@@ -366,6 +408,12 @@ export class SessionService {
       assets: await readArtifacts("assets"),
     };
 
+    if (session.candidates) {
+      session.candidates = session.candidates.map((c) =>
+        hydrateCandidateVersions(c, promptSnapshot),
+      );
+    }
+
     return {
       session,
       conversation,
@@ -528,8 +576,52 @@ export class SessionService {
     });
   }
 
+  async appendConversationMessage(
+    idOrSlug: string,
+    message: ConversationMessage,
+  ): Promise<Conversation> {
+    return this.withSessionWriteLock(async () => {
+      const { dir, session } = await this.resolveSessionDir(idOrSlug);
+      const convPath = path.join(dir, "conversation.json");
+      let conversation: Conversation = {
+        sessionId: session.id,
+        messages: [],
+        updatedAt: session.updatedAt,
+      };
+      if (existsSync(convPath)) {
+        try {
+          conversation = JSON.parse(await readFile(convPath, "utf-8"));
+        } catch {
+          // Fallback to empty conversation if corrupt
+        }
+      }
+
+      conversation.messages.push(message);
+      conversation.updatedAt = new Date().toISOString();
+      await atomicWriteJson(convPath, conversation);
+
+      const latestRaw = await readFile(path.join(dir, "session.json"), "utf-8");
+      const latestSession = JSON.parse(latestRaw) as Session;
+      latestSession.updatedAt = conversation.updatedAt;
+      await atomicWriteJson(path.join(dir, "session.json"), latestSession);
+
+      return conversation;
+    });
+  }
+
   async getCandidates(idOrSlug: string): Promise<Candidate[]> {
-    const { session } = await this.resolveSessionDir(idOrSlug);
-    return session.candidates ?? [];
+    const { dir, session } = await this.resolveSessionDir(idOrSlug);
+    let promptSnapshot = "";
+    const promptPath = path.join(dir, "prompt.snapshot.txt");
+    if (existsSync(promptPath)) {
+      try {
+        promptSnapshot = await readFile(promptPath, "utf-8");
+      } catch {
+        // Ignore read error
+      }
+    }
+    return (session.candidates ?? []).map((c) =>
+      hydrateCandidateVersions(c, promptSnapshot),
+    );
   }
 }
