@@ -22,6 +22,7 @@ export function WorkspaceHeader({
     <header className={`workspace-header ${className}`.trim()}>
       <div className="workspace-header-primary">
         <div className="workspace-brand">
+          <span className="brand-badge">STUDIO</span>
           <h1 className="brand-title">Renderloom</h1>
           <span className="brand-tagline">Review Workspace</span>
         </div>
