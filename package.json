@@ -11,7 +11,8 @@
     "test": "bun test",
     "lint": "biome check src tests",
     "format": "biome format --write src tests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate:sample": "bun run scripts/generate-sample-session.ts"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
