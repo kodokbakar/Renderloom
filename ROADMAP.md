@@ -351,22 +351,22 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Generate multiple independent designs with visible progress and isolated failures.
 
-- [ ] Implement a generation coordinator that creates one tracked job per candidate.
-- [ ] Use bounded concurrency suitable for a local application; make the limit configurable in code/configuration, not unlimited.
-- [ ] Give each job a stable candidate ID and record its own status, timings, retries, and error summary.
-- [ ] Request separate candidate outputs so a single malformed response does not invalidate the whole requested batch.
-- [ ] Normalize provider output into the structured candidate contract and reject missing or ambiguous source fields.
-- [ ] Enforce response-size and source-length limits before parsing.
-- [ ] Validate the generated JSX against the restricted syntax and component/style allowlists.
-- [ ] Convert accepted JSX AST into the trusted element tree; render with Satori; rasterize the SVG with Resvg.
-- [ ] Check output dimensions and verify that the PNG is decodable before marking the candidate complete.
-- [ ] Save successful candidate artifacts immediately, not only after the entire batch completes.
-- [ ] Continue remaining jobs when one candidate fails.
-- [ ] Add controlled retries for transient provider or renderer failures, with an upper limit and backoff; do not retry permanent validation failures indefinitely.
-- [ ] Show live progress and independent statuses: Queued, Generating, Validating, Rendering, Completed, Failed, or Cancelled.
-- [ ] Allow cancellation of queued jobs and best-effort cancellation of in-flight requests where supported.
-- [ ] Provide a clear per-candidate retry action without resetting successful candidates.
-- [ ] Save partial batch results and their errors to session metadata.
+- [x] Implement a generation coordinator that creates one tracked job per candidate.
+- [x] Use bounded concurrency suitable for a local application; make the limit configurable in code/configuration, not unlimited.
+- [x] Give each job a stable candidate ID and record its own status, timings, retries, and error summary.
+- [x] Request separate candidate outputs so a single malformed response does not invalidate the whole requested batch.
+- [x] Normalize provider output into the structured candidate contract and reject missing or ambiguous source fields.
+- [x] Enforce response-size and source-length limits before parsing.
+- [x] Validate the generated JSX against the restricted syntax and component/style allowlists.
+- [x] Convert accepted JSX AST into the trusted element tree; render with Satori; rasterize the SVG with Resvg.
+- [x] Check output dimensions and verify that the PNG is decodable before marking the candidate complete.
+- [x] Save successful candidate artifacts immediately, not only after the entire batch completes.
+- [x] Continue remaining jobs when one candidate fails.
+- [x] Add controlled retries for transient provider or renderer failures, with an upper limit and backoff; do not retry permanent validation failures indefinitely.
+- [x] Show live progress and independent statuses: Queued, Generating, Validating, Rendering, Completed, Failed, or Cancelled.
+- [x] Allow cancellation of queued jobs and best-effort cancellation of in-flight requests where supported.
+- [x] Provide a clear per-candidate retry action without resetting successful candidates.
+- [x] Save partial batch results and their errors to session metadata.
 
 **Acceptance criteria**
 

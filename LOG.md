@@ -93,3 +93,34 @@
   - `tests/prompts/composer.test.ts` (full prompt composition, injection resistance, Satori AST validator fixture pipeline).
   - `tests/server/styles-prompts-api.test.ts` (HTTP endpoints, 400 on bounds, 404 on missing styles).
 - Verified: `bun test` (314 passing tests across 36 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).
+
+### Phase 5: Generation Orchestration and Partial Success
+- Extended domain contracts in `src/domain/candidate.ts`, `src/domain/session.ts`, `src/domain/provider.ts`, and `src/domain/dimensions.ts`:
+  - Candidate lifecycle states (`queued`, `generating`, `validating`, `rendering`, `completed`, `failed`, `cancelled`), `CandidateTiming`, and `CandidateArtifacts`.
+  - `BatchSummary`, `activeBatchId`, and `lastBatchStatus` metadata on `Session`.
+  - Resource ceiling constants: `MAX_RESPONSE_SIZE = 1MB`, `MAX_SOURCE_LENGTH = 128KB`.
+  - Optional `signal?: AbortSignal` on `LLMGenerationRequest`.
+- Wired in-flight fetch cancellation via `AbortSignal.any` in `src/llm/adapters/base.ts`, `openai.ts`, and `anthropic.ts`.
+- Implemented bounded concurrency worker queue in `src/jobs/queue.ts` supporting configurable concurrency limit (default 2), cancellation of queued jobs, and idle tracking.
+- Implemented transient retry classifier and exponential backoff in `src/jobs/retry.ts`: classifies 429, timeouts, network faults, and 5xx as retryable; permanent validation, renderer, and authorization failures rejected immediately; sleep with abort support.
+- Implemented structured candidate response parser and size enforcer in `src/jobs/parser.ts`: checks 1MB response size limit before JSON parsing, parses direct or envelope formats, rejects ambiguous source keys (`code`, `component`, `html`), checks 128KB source length, and validates JSX tag opening.
+- Implemented single candidate lifecycle job executor in `src/jobs/executor.ts`: tracks stage transitions and timings, runs Satori SVG layout and Resvg PNG rasterization with decodability/dimension check, writes artifacts immediately to disk, and records candidate in session metadata.
+- Extended `SessionService` in `src/sessions/service.ts`: added `saveCandidate`, `recordBatchSummary`, `getCandidates`, and serialized session write lock preventing concurrent read-modify-write races.
+- Implemented batch `GenerationCoordinator` in `src/jobs/coordinator.ts`: coordinates multi-candidate batches, ensures failure isolation (partial success), supports queued and in-flight cancellation, per-candidate retries without affecting completed candidates, and event emission.
+- Implemented Bun HTTP API routes in `src/server/routes/jobs.ts` and wired into `src/server/server.ts`:
+  - `POST /api/generations`: start generation batch (202 Accepted).
+  - `GET /api/generations/:batchId`: query batch status, candidate progress, and summary.
+  - `POST /api/generations/:batchId/cancel`: cancel batch.
+  - `POST /api/generations/:batchId/candidates/:candidateId/cancel`: cancel individual candidate.
+  - `POST /api/generations/:batchId/candidates/:candidateId/retry`: retry specific failed/cancelled candidate.
+  - `GET /api/generations/:batchId/events`: live SSE stream (`text/event-stream`).
+  - `GET /api/sessions/:id/candidates`: retrieve session candidate records.
+- Added unit and integration test suites:
+  - `tests/jobs/queue.test.ts` (concurrency limit, FIFO, cancellation, idle).
+  - `tests/jobs/retry.test.ts` (transient vs permanent classification, backoff calculation, abortable sleep).
+  - `tests/jobs/parser.test.ts` (1MB response limit, 128KB source limit, direct vs envelope, ambiguous key rejection).
+  - `tests/jobs/executor.test.ts` (end-to-end lifecycle, timings, disk persistence, transient retry, abort).
+  - `tests/sessions/candidate-persistence.test.ts` (session candidate updates, batch summary persistence).
+  - `tests/jobs/coordinator.test.ts` (multi-candidate batch, partial success isolation, retry, batch abort, events).
+  - `tests/server/jobs-api.test.ts` (HTTP start, query, cancel, retry, and SSE streaming).
+- Verified: `bun test` (364 passing tests across 43 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).
