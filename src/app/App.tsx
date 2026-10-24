@@ -3,7 +3,6 @@ import "./App.css";
 import { ApiKeyModal } from "../components/ApiKeyModal";
 import { BatchProgressIndicator } from "../components/BatchProgressIndicator";
 import { CandidateGallery } from "../components/CandidateGallery";
-import { GenerationSettingsBar } from "../components/GenerationSettingsBar";
 import { NewSessionModal } from "../components/NewSessionModal";
 import { PreviewModal } from "../components/PreviewModal";
 import { StudioControls } from "../components/StudioControls";
@@ -11,11 +10,13 @@ import { WorkspaceDashboard } from "../components/WorkspaceDashboard";
 import { WorkspaceHeader } from "../components/WorkspaceHeader";
 import { buildArtifactUrl } from "../components/utils/artifact-url";
 import type { Candidate } from "../domain/candidate";
+import type { ProviderMeta } from "../domain/provider";
 import type {
   CreateSessionRequest,
   GenerationRequest,
 } from "../domain/request";
 import type { FullSession, Session, SessionSummary } from "../domain/session";
+import type { StylePresetSummary } from "../domain/style";
 import type { Version } from "../domain/version";
 
 export interface AppProps {
@@ -79,6 +80,8 @@ export function App({
   >({});
   const [isRevising, setIsRevising] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [styles, setStyles] = useState<StylePresetSummary[]>([]);
+  const [providers, setProviders] = useState<ProviderMeta[]>([]);
 
   const session = fullSession?.session;
   const candidates: Candidate[] = session?.candidates || [];
@@ -98,6 +101,31 @@ export function App({
   useEffect(() => {
     let mounted = true;
     async function loadInitialData() {
+      try {
+        const [stylesRes, providersRes] = await Promise.all([
+          fetch("/api/styles"),
+          fetch("/api/llm/providers"),
+        ]);
+        if (stylesRes.ok && mounted) {
+          const stylesData = (await stylesRes.json()) as {
+            styles?: StylePresetSummary[];
+          };
+          if (stylesData.styles) {
+            setStyles(stylesData.styles);
+          }
+        }
+        if (providersRes.ok && mounted) {
+          const providersData = (await providersRes.json()) as {
+            providers?: ProviderMeta[];
+          };
+          if (providersData.providers) {
+            setProviders(providersData.providers);
+          }
+        }
+      } catch {
+        // Handled silently in offline tests
+      }
+
       if (initialSessions && initialSessions.length > 0) return;
       setIsLoadingSessions(true);
       try {
@@ -683,14 +711,11 @@ export function App({
             promptSnapshot={fullSession?.promptSnapshot}
           />
 
-          <GenerationSettingsBar
-            session={fallbackSession}
-            generationConfig={fullSession?.generationConfig}
-          />
-
           <StudioControls
             session={fallbackSession}
             generationConfig={fullSession?.generationConfig}
+            providers={providers}
+            styles={styles}
             isGenerating={
               isGenerating || session?.lastBatchStatus === "running"
             }
@@ -745,6 +770,8 @@ export function App({
         isOpen={isNewSessionModalOpen}
         onClose={() => setIsNewSessionModalOpen(false)}
         onCreate={handleCreateSession}
+        providers={providers}
+        styles={styles}
       />
 
       <ApiKeyModal
