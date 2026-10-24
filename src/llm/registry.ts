@@ -2,6 +2,7 @@ import { ValidationError } from "../domain/errors";
 import type { ProviderAdapter, ProviderMeta } from "../domain/provider";
 import { AnthropicAdapter } from "./adapters/anthropic";
 import type { FetchFunction } from "./adapters/base";
+import { CustomAdapter } from "./adapters/custom";
 import { OpenAIAdapter } from "./adapters/openai";
 export class ProviderRegistry {
   private readonly adapters = new Map<string, ProviderAdapter>();
@@ -17,6 +18,7 @@ export class ProviderRegistry {
     } else {
       this.register(new OpenAIAdapter({ fetchFn: options?.fetchFn }));
       this.register(new AnthropicAdapter({ fetchFn: options?.fetchFn }));
+      this.register(new CustomAdapter({ fetchFn: options?.fetchFn }));
     }
   }
 

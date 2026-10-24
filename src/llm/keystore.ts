@@ -21,13 +21,16 @@ export class InMemoryKeyStore {
     if (!providerId || typeof providerId !== "string") {
       throw new ValidationError("providerId must be a non-empty string");
     }
-
-    if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length === 0) {
+    const isCustom = providerId.toLowerCase() === "custom";
+    if (
+      !isCustom &&
+      (!apiKey || typeof apiKey !== "string" || apiKey.trim().length === 0)
+    ) {
       throw new ValidationError("apiKey must be a non-empty string");
     }
 
     this.store.set(providerId.toLowerCase(), {
-      apiKey: apiKey.trim(),
+      apiKey: typeof apiKey === "string" ? apiKey.trim() : "",
       baseUrl: baseUrl?.trim() ? baseUrl.trim() : undefined,
       updatedAt: new Date(),
     });
@@ -58,7 +61,9 @@ export class InMemoryKeyStore {
     for (const [providerId, entry] of this.store.entries()) {
       result[providerId] = {
         configured: true,
-        maskedKey: maskApiKey(entry.apiKey),
+        maskedKey: entry.apiKey
+          ? maskApiKey(entry.apiKey)
+          : "No API key required",
         baseUrl: entry.baseUrl,
         updatedAt: entry.updatedAt.toISOString(),
       };
