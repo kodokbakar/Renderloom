@@ -8,6 +8,7 @@ import { handleDimensionRoute } from "./routes/dimensions";
 import { handleJobRoute } from "./routes/jobs";
 import { handleLlmRoute } from "./routes/llm";
 import { handlePromptRoute } from "./routes/prompts";
+import { handleRevisionRoute } from "./routes/revisions";
 import { handleSessionRoute } from "./routes/sessions";
 import { handleStyleRoute } from "./routes/styles";
 import { validateGenerationRequest } from "./validation";
@@ -97,6 +98,16 @@ export function createServer(
             { status: 400 },
           );
         }
+      }
+
+      const revisionResponse = await handleRevisionRoute(
+        req,
+        url,
+        coordinator,
+        sessionService,
+      );
+      if (revisionResponse) {
+        return revisionResponse;
       }
 
       const sessionResponse = await handleSessionRoute(
