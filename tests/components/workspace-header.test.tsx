@@ -119,4 +119,19 @@ describe("Workspace Header & Controls", () => {
     expect(html).toContain("50%");
     expect(html).toContain("Cancel Batch");
   });
+
+  test("WorkspaceHeader renders navigation button and API keys button when handlers provided", () => {
+    const html = renderToStaticMarkup(
+      <WorkspaceHeader
+        session={mockSession}
+        onNavigateDashboard={() => {}}
+        onOpenApiKeys={() => {}}
+      />,
+    );
+
+    expect(html).toContain('data-testid="nav-dashboard-btn"');
+    expect(html).toContain("← Dashboard");
+    expect(html).toContain('data-testid="header-api-keys-btn"');
+    expect(html).toContain("API Keys");
+  });
 });
