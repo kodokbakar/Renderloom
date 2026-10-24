@@ -455,19 +455,18 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Make Renderloom usable by a developer who has cloned the repository for the first time.
 
-- [ ] Write the README project summary, feature list, screenshots, architecture overview, and a short demo workflow.
-- [ ] Document prerequisites, Bun installation, dependency installation, development mode, tests, and production build commands.
-- [ ] Document every supported LLM provider, model-ID entry behavior, key validation limitations, and known provider-specific differences.
-- [ ] Explain BYOK handling, default in-memory credential lifetime, the fact that keys are not saved in session output, and how to clear a key.
-- [ ] Document supported JSX elements and styles, validation restrictions, and known Satori limitations.
-- [ ] Document how to customize `prompt.txt` and create or edit style presets.
-- [ ] Document the `Outputs/<session-name>/` directory and meaning of each saved artifact.
-- [ ] Add a sample session with non-sensitive images/source suitable for documentation, or provide a reliable way to generate one.
-- [ ] Add license files and third-party notices as appropriate, especially for included fonts and assets.
-- [ ] Add issue templates or a bug-report checklist if the repository is open to contributions.
-- [ ] Verify that a clean clone can install, start, test, generate a fixture, and reopen a sample session using the documented steps.
-- [ ] Tag the first MVP release only after all required checks below pass.
-
+- [x] Write the README project summary, feature list, screenshots, architecture overview, and a short demo workflow.
+- [x] Document prerequisites, Bun installation, dependency installation, development mode, tests, and production build commands.
+- [x] Document every supported LLM provider, model-ID entry behavior, key validation limitations, and known provider-specific differences.
+- [x] Explain BYOK handling, default in-memory credential lifetime, the fact that keys are not saved in session output, and how to clear a key.
+- [x] Document supported JSX elements and styles, validation restrictions, and known Satori limitations.
+- [x] Document how to customize `prompt.txt` and create or edit style presets.
+- [x] Document the `Outputs/<session-name>/` directory and meaning of each saved artifact.
+- [x] Add a sample session with non-sensitive images/source suitable for documentation, or provide a reliable way to generate one.
+- [x] Add license files and third-party notices as appropriate, especially for included fonts and assets.
+- [x] Add issue templates or a bug-report checklist if the repository is open to contributions.
+- [x] Verify that a clean clone can install, start, test, generate a fixture, and reopen a sample session using the documented steps.
+- [x] Tag the first MVP release only after all required checks below pass.
 **Acceptance criteria**
 
 - A new developer can start Renderloom by following the README without undocumented manual setup.
@@ -478,16 +477,16 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 These ten requirements are release-blocking. Keep this checklist in sync with the phase checklists above.
 
-- [ ] Pengguna dapat memilih provider, model, dan memasukkan API key sendiri.
-- [ ] Pengguna dapat mengubah prompt.txt dan memilih style preset.
-- [ ] Pengguna dapat mengatur jumlah gambar, aspect ratio, dan dimensi output.
-- [ ] LLM menghasilkan JSX yang lolos validasi dan dapat dirender menjadi PNG.
-- [ ] Setiap hasil dapat direview, dan source JSX dapat diperiksa.
-- [ ] Pengguna dapat merevisi gambar tanpa meninggalkan sesi.
-- [ ] Setiap revisi menjadi versi baru tanpa menghapus versi sebelumnya.
-- [ ] Session dapat ditutup lalu dibuka kembali dengan konteks dan hasil yang utuh.
-- [ ] Kegagalan satu kandidat tidak menghilangkan hasil kandidat lainnya.
-- [ ] API key tidak disimpan ke folder output, percakapan, atau log.
+- [x] Pengguna dapat memilih provider, model, dan memasukkan API key sendiri.
+- [x] Pengguna dapat mengubah prompt.txt dan memilih style preset.
+- [x] Pengguna dapat mengatur jumlah gambar, aspect ratio, dan dimensi output.
+- [x] LLM menghasilkan JSX yang lolos validasi dan dapat dirender menjadi PNG.
+- [x] Setiap hasil dapat direview, dan source JSX dapat diperiksa.
+- [x] Pengguna dapat merevisi gambar tanpa meninggalkan sesi.
+- [x] Setiap revisi menjadi versi baru tanpa menghapus versi sebelumnya.
+- [x] Session dapat ditutup lalu dibuka kembali dengan konteks dan hasil yang utuh.
+- [x] Kegagalan satu kandidat tidak menghilangkan hasil kandidat lainnya.
+- [x] API key tidak disimpan ke folder output, percakapan, atau log.
 
 ### 6.1 Definition of Done for MVP
 

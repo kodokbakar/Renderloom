@@ -228,3 +228,29 @@
   - `tests/security/license-review.test.ts`: audited runtime dependencies for permissive licenses (`MIT`, `Apache-2.0`, `BSD`, `ISC`, `MPL-2.0`) and verified Roboto font SIL OFL 1.1 license.
 - Updated `ROADMAP.md`: marked Phase 8 release-blocking checklist items completed.
 - Verified: `bun test` (all tests passing), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite production build).
+
+### Phase 9: Documentation and MVP Release
+- Added legal and third-party notices:
+  - `LICENSE`: MIT License (Copyright 2026 Renderloom Contributors).
+  - `THIRD_PARTY_LICENSES.md`: Documented all runtime dependencies (`@resvg/resvg-js` Apache-2.0, `satori` MIT, `react` MIT, `react-dom` MIT, `zod` MIT) and Roboto font (SIL Open Font License 1.1).
+- Added GitHub issue templates in `.github/ISSUE_TEMPLATE/`:
+  - `bug_report.md`: Structured report template with explicit security notice and warning never to include API keys, credentials, or tokens.
+  - `feature_request.md`: Structured feature suggestion template with problem framing, solution, alternatives, and alignment with Renderloom design principles.
+- Added deep technical documentation in `docs/`:
+  - `docs/providers.md`: LLM provider guide covering OpenAI, Anthropic, custom model IDs, in-memory BYOK lifecycle, key forget endpoint, custom base URL validation (SSRF/metadata defense), and provider differences.
+  - `docs/renderer-satori.md`: Satori/Resvg rendering pipeline, JSX tag allowlist, blocked dangerous tags, flexbox layout rules, resource caps (`MAX_AST_DEPTH`, `MAX_AST_NODES`, `MAX_ASSET_BYTES`, `MAX_SVG_BYTES`, `MAX_RENDER_DURATION_MS`), font loading, and prototype pollution defenses.
+  - `docs/prompts-and-styles.md`: Base system prompt customization via `prompt.txt`, per-session snapshotting for determinism, technical constraints, style preset JSON schema, guide for creating new presets, and revision prompt composition.
+  - `docs/outputs-and-sessions.md`: Session directory layout under `Outputs/<slug>/`, JSON metadata schemas (`session.json`, `conversation.json`, `generation-config.json`, `prompt.snapshot.txt`), artifact structure, immutable versioning, non-destructive branching, and atomic filesystem guarantees.
+- Rewrote root `README.md`:
+  - Comprehensive project summary, feature matrix, architecture overview diagram, prerequisites, quickstart, developer commands table, demo workflow, security model, and doc references.
+- Added sample session generator in `scripts/generate-sample-session.ts`:
+  - Programmatically generates a complete Bauhaus poster session (`bauhaus-geometric-poster`) with two candidates, revision versioning (`v001`, `v002`), rendered PNG raster images, SVG vectors, and JSX source files.
+  - Added `"generate:sample": "bun run scripts/generate-sample-session.ts"` to `package.json` scripts.
+- Added automated onboarding and MVP documentation test suite in `tests/docs/onboarding.test.ts`:
+  - Verifies presence and contents of documentation, license files, and issue templates with credential warnings.
+  - Verifies package.json scripts consistency.
+  - Tests sample session generation end-to-end, confirming valid Satori SVG generation, Resvg PNG rasterization with PNG magic bytes, and valid JSX.
+  - Verifies session reopen and hydration via `SessionService`.
+  - Scans generated session files confirming zero secret or API key leaks.
+- Updated `ROADMAP.md`: Marked all Phase 9 items and all 10 Section 6 Required MVP Completion Checklist items complete.
+- Verified: `bun test` (595 passing tests across 73 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite production build).
