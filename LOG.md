@@ -165,3 +165,43 @@
   - `tests/components/workspace-header.test.tsx`
   - `tests/app/app-integration.test.tsx`
 - Verified: `bun test` (429 passing tests across 54 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite production build).
+
+### Phase 7: In-Session Revisions and Immutable Version History
+- Extended domain contracts in `src/domain/version.ts`, `src/domain/candidate.ts`, `src/domain/session.ts`, and `src/domain/index.ts`:
+  - Added `SafeModelMetadata` with safe usage counters and duration without secret leaks.
+  - Extended `Version` interface with `revisionPrompt`, `modelMetadata`, `label`, `rationale`, and `parentVersionId`.
+  - Added `RevisionError` and extended `Candidate` with `versions?: Version[]` and `lastRevisionError?: RevisionError`.
+  - Added optional `versionId?: string` to `ConversationMessage`.
+- Implemented revision prompt composer in `src/prompts/revision-composer.ts` and re-exported in `src/prompts/index.ts`:
+  - Injects current JSX in fenced code block with strict technical constraints, style preset instructions, and single candidate output contract.
+  - Keeps context bounded by filtering conversation history to the target candidate (last 4 turns) and truncating message snippets.
+- Updated generation pipeline and execution coordinator in `src/jobs/executor.ts`, `src/jobs/types.ts`, and `src/jobs/coordinator.ts`:
+  - Populates initial version `v001` on candidate completion in `executeCandidateJob`.
+  - Implemented `reviseCandidate`: loads parent JSX from disk, composes revision prompt, calls LLM via worker queue, normalizes and validates JSX AST allowlist, renders SVG/PNG, writes immutable artifacts `${candidateId}-${versionId}.jsx/.svg/.png`, appends to conversation log, and emits events.
+  - Implemented failure safety: generation, validation, or rendering failures preserve the current active version and artifacts, recording sanitized error in `candidate.lastRevisionError`.
+  - Implemented `restoreCandidateVersion`: switches `candidate.currentVersionId` and active artifact paths without deleting subsequent versions.
+  - Implemented branching from historical versions: revision from a restored version creates a new incremented version with explicit `parentVersionId`.
+- Updated session service in `src/sessions/service.ts`:
+  - Added `appendConversationMessage` with atomic JSON persistence and timestamp update under serialized write lock.
+  - Added legacy candidate version hydration in `getSession` and `getCandidates` ensuring backwards compatibility.
+- Built HTTP API routes and request validation in `src/server/validation.ts`, `src/server/routes/revisions.ts`, and `src/server/server.ts`:
+  - `POST /api/sessions/:id/candidates/:candidateId/revisions`: revise candidate.
+  - `GET /api/sessions/:id/candidates/:candidateId/versions`: query version history.
+  - `POST /api/sessions/:id/candidates/:candidateId/versions/:versionId/restore`: restore active version.
+- Built Review Workspace UI integration in `src/components/` and `src/app/`:
+  - `RevisionInput.tsx`: revision prompt textarea with keyboard shortcut (`Cmd+Enter`), parent version badge, and submitting state.
+  - `VersionHistory.tsx`: version timeline with thumbnails, badges, parent links, active/viewing pills, and restore button.
+  - `PreviewModal.tsx`: embedded revision input, version history, historical version inspection banner, and sanitized failure alert.
+  - `MetadataViewer.tsx`: displays parent version and revision prompt in identity section.
+  - `App.tsx`: wired `handleReviseCandidate` and `handleRestoreVersion` with source cache invalidation and session state synchronization.
+  - `App.css`: styles for revision inputs, version history cards, historical banner, and failure alert.
+- Added automated unit and integration tests:
+  - `tests/domain/version-contracts.test.ts`
+  - `tests/prompts/revision-composer.test.ts`
+  - `tests/jobs/revision-execution.test.ts`
+  - `tests/sessions/revision-persistence.test.ts`
+  - `tests/server/revisions-api.test.ts`
+  - `tests/components/revision-input.test.tsx`
+  - `tests/components/version-history.test.tsx`
+  - `tests/app/app-revision-integration.test.tsx`
+- Verified: `bun test` (503 passing tests across 66 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite production build).

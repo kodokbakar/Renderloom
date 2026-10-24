@@ -402,18 +402,18 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Let users modify a design by natural-language instruction without leaving the session or losing previous work.
 
-- [ ] Add a revision prompt for the currently selected candidate.
-- [ ] Send the revision request with the selected candidate's current JSX, the session's relevant conversation context, the effective style constraints, and output dimensions.
-- [ ] Keep the revision context bounded; do not blindly include every artifact or the entire history when unnecessary.
-- [ ] Let the model modify the selected candidate rather than replacing unrelated candidates.
-- [ ] Run every revised source through exactly the same validation and render pipeline as an initial generation.
-- [ ] Create a new immutable version after a revision succeeds; never overwrite the previous source, SVG, or PNG.
-- [ ] Record the parent version ID, revision instruction, timestamp, and safe model metadata.
-- [ ] Display version history with preview, source, and restore/branch actions.
-- [ ] Implement “restore” by selecting an existing version or branching from it; do not delete later versions implicitly.
-- [ ] Preserve the original prompt and prompt snapshot while recording the revision prompt separately.
-- [ ] Keep revision failures visible and retain the last successful version as the current usable design.
-- [ ] Allow more than one revision within the same session and persist the full revision chain.
+- [x] Add a revision prompt for the currently selected candidate.
+- [x] Send the revision request with the selected candidate's current JSX, the session's relevant conversation context, the effective style constraints, and output dimensions.
+- [x] Keep the revision context bounded; do not blindly include every artifact or the entire history when unnecessary.
+- [x] Let the model modify the selected candidate rather than replacing unrelated candidates.
+- [x] Run every revised source through exactly the same validation and render pipeline as an initial generation.
+- [x] Create a new immutable version after a revision succeeds; never overwrite the previous source, SVG, or PNG.
+- [x] Record the parent version ID, revision instruction, timestamp, and safe model metadata.
+- [x] Display version history with preview, source, and restore/branch actions.
+- [x] Implement “restore” by selecting an existing version or branching from it; do not delete later versions implicitly.
+- [x] Preserve the original prompt and prompt snapshot while recording the revision prompt separately.
+- [x] Keep revision failures visible and retain the last successful version as the current usable design.
+- [x] Allow more than one revision within the same session and persist the full revision chain.
 
 **Acceptance criteria**
 

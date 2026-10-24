@@ -5,6 +5,7 @@ import type {
 } from "../domain/candidate";
 import { ProviderError, RenderError, ValidationError } from "../domain/errors";
 import type { ProviderAdapter } from "../domain/provider";
+import type { SafeModelMetadata, Version } from "../domain/version";
 import { render } from "../renderer/render";
 import { validateJsx } from "../renderer/validator";
 import { redactSecrets } from "../security/redact";
@@ -110,7 +111,7 @@ export async function executeCandidateJob(
 
   let rawText = "";
   let attempt = 0;
-
+  let safeModelMetadata: SafeModelMetadata | undefined;
   while (true) {
     if (signal?.aborted) {
       await updateState("cancelled", "Cancelled by caller");
@@ -128,6 +129,12 @@ export async function executeCandidateJob(
         signal,
       });
       rawText = response.rawText;
+      safeModelMetadata = {
+        providerId: providerAdapter.id,
+        modelId: response.modelId || modelId,
+        durationMs: response.durationMs,
+        usage: response.usage,
+      };
       timings.generationEndedAt = new Date().toISOString();
       break;
     } catch (err: unknown) {
@@ -252,6 +259,21 @@ export async function executeCandidateJob(
         new Date(timings.completedAt).getTime() -
         new Date(timings.queuedAt).getTime();
     }
+
+    const v1: Version = {
+      id: versionId,
+      candidateId,
+      versionNumber: 1,
+      promptSnapshot: prompt,
+      jsxSourcePath: `source/${jsxFilename}`,
+      svgPath: `svg/${svgFilename}`,
+      pngPath: `images/${pngFilename}`,
+      createdAt: timings.completedAt,
+      label: candidate.label,
+      rationale: candidate.rationale,
+      modelMetadata: safeModelMetadata,
+    };
+    candidate.versions = [v1];
 
     await updateState("completed");
     return candidate;

@@ -97,6 +97,18 @@ export const TestConnectionRequestSchema = z.object({
   baseUrl: z.string().optional(),
 });
 export type TestConnectionRequest = z.infer<typeof TestConnectionRequestSchema>;
+export const ReviseCandidateRequestSchema = z.object({
+  prompt: z.string().trim().min(1, "prompt is required").max(MAX_PROMPT_LENGTH),
+  parentVersionId: z.string().optional(),
+  providerId: z.string().optional(),
+  modelId: z.string().optional(),
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+export type ReviseCandidateRequest = z.infer<
+  typeof ReviseCandidateRequestSchema
+>;
 
 export const ResolveDimensionsSchema = z
   .object({
@@ -222,6 +234,20 @@ export function validateComposePromptRequest(
     const issues = result.error.issues.map((i) => i.message).join(", ");
     throw new ValidationError(
       `Invalid prompt compose request: ${issues}`,
+      result.error.format(),
+    );
+  }
+  return result.data;
+}
+
+export function validateReviseCandidateRequest(
+  input: unknown,
+): ReviseCandidateRequest {
+  const result = ReviseCandidateRequestSchema.safeParse(input);
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => i.message).join(", ");
+    throw new ValidationError(
+      `Invalid revise candidate request: ${issues}`,
       result.error.format(),
     );
   }
