@@ -124,3 +124,44 @@
   - `tests/jobs/coordinator.test.ts` (multi-candidate batch, partial success isolation, retry, batch abort, events).
   - `tests/server/jobs-api.test.ts` (HTTP start, query, cancel, retry, and SSE streaming).
 - Verified: `bun test` (364 passing tests across 43 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).
+
+### Phase 6: Review Workspace
+- Implemented core utilities and security guards in `src/components/utils/`:
+  - `artifact-url.ts`: `buildArtifactUrl` validates session boundaries, rejects path traversal and null bytes, restricts types to `images`, `source`, `svg`, `assets`, and builds `/api/sessions/:id/artifacts/:type/:filename`.
+  - `sanitize-error.ts`: `sanitizeErrorMessage` redacts OpenAI (`sk-...`), Anthropic (`sk-ant-...`), Bearer tokens, query/header credentials, and local absolute filesystem paths while preserving actionable AST validation, dimension mismatch, and provider error messages.
+  - `format-timing.ts`: `formatTimingDuration` and `formatCandidateDuration` format milliseconds into human-readable durations (`450ms`, `1.5s`, `2m 10s`).
+  - `syntax-tokenizer.ts`: Zero-dependency tokenizer `tokenizeJsxOrSvg` and `tokenizeLines` for syntax-highlighting JSX and SVG elements, attributes, strings, comments, numbers, and keywords.
+- Built status badges, candidate cards, and gallery in `src/components/`:
+  - `icons.tsx`: Lightweight inline SVG icons (`ImageIcon`, `CodeIcon`, `DownloadIcon`, `CopyIcon`, `CheckIcon`, `RefreshCwIcon`, `AlertCircleIcon`, `XIcon`, `ChevronLeftIcon`, `ChevronRightIcon`, `ClockIcon`, `BanIcon`).
+  - `StatusBadge.tsx`: Badges for all 7 lifecycle states (`queued`, `generating`, `validating`, `rendering`, `completed`, `failed`, `cancelled`).
+  - `CandidateCard.tsx`: Candidate thumbnail for completed candidates, duration badge, sanitized failure snippet, status badge, inspect overlay, and retry action.
+  - `EmptyState.tsx`: Semantic empty states for `new-session`, `generating`, `no-success`, and `unavailable-artifact`.
+  - `CandidateGallery.tsx`: Responsive candidate grid, selection state, and batch warning notice for failed runs.
+- Built preview panel, metadata viewer, source inspection, and downloads in `src/components/`:
+  - `ImagePreview.tsx`: Full-resolution image preview container with aspect ratio preservation and unavailable artifact fallback.
+  - `MetadataViewer.tsx`: Version ID, candidate ID, label, rationale, model, style, dimensions, and granular phase timings breakdown.
+  - `SourceViewer.tsx`: Syntax-highlighted read-only JSX and SVG source viewer with line numbers and copy-to-clipboard button.
+  - `DownloadActions.tsx`: Scoped PNG, SVG, and JSX download actions resolving to session artifact endpoints.
+  - `ErrorCard.tsx`: Sanitized actionable error card with error code badge and retry candidate action.
+  - `PreviewModal.tsx`: Dialog coordinating large image preview, JSX source tab, SVG source tab, metadata sidebar, downloads, and keyboard navigation (`Escape`, `ArrowLeft`, `ArrowRight`).
+- Built workspace header, settings bar, and batch progress in `src/components/`:
+  - `WorkspaceHeader.tsx`: Brand title, session name, slug badge, session switcher dropdown, and collapsible prompt drawer.
+  - `GenerationSettingsBar.tsx`: Settings chips for provider, model, style, dimensions, and candidate count.
+  - `BatchProgressIndicator.tsx`: Active batch progress bar with completion percentage, status breakdown, and batch cancel action.
+- Integrated Studio Workspace App and styling in `src/app/`:
+  - `App.tsx`: Full workspace state coordination (sessions list, active session, candidate gallery, selection, non-blocking asynchronous JSX/SVG artifact fetching, desktop keyboard navigation, and cancel/retry actions).
+  - `App.css`: Modern desktop-responsive CSS layout with dark theme, card grid, modal overlay, syntax highlighting colors, and transitions.
+  - `vite.config.ts`: Added `/api` proxy forwarding requests to `http://localhost:3000`.
+- Added unit and integration test suites:
+  - `tests/components/artifact-url.test.ts`
+  - `tests/components/sanitize-error.test.ts`
+  - `tests/components/syntax-tokenizer.test.ts`
+  - `tests/components/status-badge.test.tsx`
+  - `tests/components/candidate-card.test.tsx`
+  - `tests/components/candidate-gallery.test.tsx`
+  - `tests/components/metadata-viewer.test.tsx`
+  - `tests/components/download-actions.test.tsx`
+  - `tests/components/preview-modal.test.tsx`
+  - `tests/components/workspace-header.test.tsx`
+  - `tests/app/app-integration.test.tsx`
+- Verified: `bun test` (429 passing tests across 54 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite production build).

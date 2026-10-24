@@ -379,18 +379,18 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Provide the main user experience for inspecting and selecting generated visual designs.
 
-- [ ] Build a session workspace with prompt details, generation settings, progress, and result gallery.
-- [ ] Display candidate thumbnails and generation status.
-- [ ] Open a selected image in a larger preview.
-- [ ] Display the candidate's current version and its generation metadata.
-- [ ] Add a syntax-highlighted, read-only JSX source viewer for the current version.
-- [ ] Add a read-only SVG source viewer or download action.
-- [ ] Add download actions for PNG, SVG, and JSX source.
-- [ ] Ensure preview routes resolve only assets from the selected session and candidate.
-- [ ] Surface useful validation/render errors for failed candidates without exposing secrets or sensitive provider request details.
-- [ ] Add empty states for a new session, a running generation, no successful candidates, and an unavailable artifact.
-- [ ] Keep layout and keyboard navigation usable at common desktop screen widths.
-- [ ] Add loading states and avoid blocking the entire UI while candidate jobs are running.
+- [x] Build a session workspace with prompt details, generation settings, progress, and result gallery.
+- [x] Display candidate thumbnails and generation status.
+- [x] Open a selected image in a larger preview.
+- [x] Display the candidate's current version and its generation metadata.
+- [x] Add a syntax-highlighted, read-only JSX source viewer for the current version.
+- [x] Add a read-only SVG source viewer or download action.
+- [x] Add download actions for PNG, SVG, and JSX source.
+- [x] Ensure preview routes resolve only assets from the selected session and candidate.
+- [x] Surface useful validation/render errors for failed candidates without exposing secrets or sensitive provider request details.
+- [x] Add empty states for a new session, a running generation, no successful candidates, and an unavailable artifact.
+- [x] Keep layout and keyboard navigation usable at common desktop screen widths.
+- [x] Add loading states and avoid blocking the entire UI while candidate jobs are running.
 
 **Acceptance criteria**
 
