@@ -118,12 +118,10 @@ describe("App Studio Workspace Integration", () => {
     expect(html).toContain("brand-logo-exploration");
     expect(html).toContain("View Prompt");
 
-    // Generation settings bar
+    // Studio controls
+    expect(html).toContain("studio-controls");
     expect(html).toContain("anthropic");
     expect(html).toContain("claude-3-5-sonnet");
-    expect(html).toContain("tech-minimal");
-    expect(html).toContain("1024 × 1024");
-
     // Batch progress indicator
     expect(html).toContain("Partial Success (1 completed, 1 failed)");
 

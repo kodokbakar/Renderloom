@@ -62,35 +62,108 @@ const DEFAULT_PROVIDERS: ProviderMeta[] = [
 
 const DEFAULT_STYLES: StylePresetSummary[] = [
   {
-    id: "tech-minimal",
-    name: "Tech Minimal",
-    description: "Crisp vector geometry",
+    id: "minimal",
+    name: "Minimal",
+    description:
+      "Radical reduction, refined typographic hierarchy, quiet monochromatic palette, and supreme reliance on breath and whitespace.",
     palette: {
-      background: "#0d0e11",
-      foreground: "#f3f4f6",
-      primary: "#e5a84b",
-      accent: "#e5a84b",
+      background: "#FFFFFF",
+      foreground: "#0F172A",
+      primary: "#0F172A",
+      secondary: "#64748B",
+      accent: "#0284C7",
+      muted: "#94A3B8",
+      border: "#F1F5F9",
     },
     visualSample: {
-      background: "#0d0e11",
-      foreground: "#f3f4f6",
-      accent: "#e5a84b",
+      background: "#FFFFFF",
+      foreground: "#0F172A",
+      accent: "#0284C7",
+      previewText: "LESS",
     },
   },
   {
-    id: "modern-clean",
-    name: "Modern Clean",
-    description: "Airy balance",
+    id: "bauhaus",
+    name: "Bauhaus",
+    description:
+      "Modernist German movement emphasizing primary colors, bold geometric forms, functional hierarchy, and asymmetric balance.",
     palette: {
-      background: "#ffffff",
-      foreground: "#111827",
-      primary: "#3b82f6",
-      accent: "#6366f1",
+      background: "#F5F5F0",
+      foreground: "#111111",
+      primary: "#D02020",
+      secondary: "#1D4ED8",
+      accent: "#FBBF24",
+      muted: "#71717A",
+      border: "#111111",
     },
     visualSample: {
-      background: "#ffffff",
-      foreground: "#111827",
-      accent: "#3b82f6",
+      background: "#F5F5F0",
+      foreground: "#111111",
+      accent: "#D02020",
+      previewText: "BAUHAUS",
+    },
+  },
+  {
+    id: "brutalist",
+    name: "Brutalist",
+    description:
+      "Raw, anti-decorative neo-brutalism defined by stark high-contrast boundaries, thick black borders, hard offset drop shadows, and monospace utility.",
+    palette: {
+      background: "#FFFFFF",
+      foreground: "#000000",
+      primary: "#000000",
+      secondary: "#22C55E",
+      accent: "#22C55E",
+      muted: "#525252",
+      border: "#000000",
+    },
+    visualSample: {
+      background: "#FFFFFF",
+      foreground: "#000000",
+      accent: "#22C55E",
+      previewText: "RAW",
+    },
+  },
+  {
+    id: "editorial",
+    name: "Editorial",
+    description:
+      "Sophisticated print-publishing aesthetic featuring warm tactile surfaces, literary typography, elegant bylines, and graceful column pacing.",
+    palette: {
+      background: "#FAF7F2",
+      foreground: "#262626",
+      primary: "#171717",
+      secondary: "#525252",
+      accent: "#881337",
+      muted: "#78716C",
+      border: "#E7E5E4",
+    },
+    visualSample: {
+      background: "#FAF7F2",
+      foreground: "#262626",
+      accent: "#881337",
+      previewText: "PRINT",
+    },
+  },
+  {
+    id: "swiss",
+    name: "Swiss International",
+    description:
+      "International Typographic Style rooted in mathematical precision, objective clarity, asymmetric grid alignment, and purposeful white space.",
+    palette: {
+      background: "#F8FAFC",
+      foreground: "#0F172A",
+      primary: "#E11D48",
+      secondary: "#334155",
+      accent: "#E11D48",
+      muted: "#64748B",
+      border: "#E2E8F0",
+    },
+    visualSample: {
+      background: "#F8FAFC",
+      foreground: "#0F172A",
+      accent: "#E11D48",
+      previewText: "GRID",
     },
   },
 ];
@@ -98,12 +171,15 @@ const DEFAULT_STYLES: StylePresetSummary[] = [
 export function StudioControls({
   session,
   generationConfig,
-  providers = DEFAULT_PROVIDERS,
-  styles = DEFAULT_STYLES,
+  providers: customProviders = DEFAULT_PROVIDERS,
+  styles: customStyles = DEFAULT_STYLES,
   isGenerating,
   onGenerate,
   className = "",
 }: StudioControlsProps) {
+  const providers =
+    customProviders.length > 0 ? customProviders : DEFAULT_PROVIDERS;
+  const styles = customStyles.length > 0 ? customStyles : DEFAULT_STYLES;
   const initialProvider =
     generationConfig?.providerId ||
     session.providerId ||
@@ -115,10 +191,7 @@ export function StudioControls({
     providers.find((p) => p.id === initialProvider)?.defaultModelId ||
     "claude-3-5-sonnet";
   const initialStyle =
-    generationConfig?.styleId ||
-    session.styleId ||
-    styles[0]?.id ||
-    "tech-minimal";
+    generationConfig?.styleId || session.styleId || styles[0]?.id || "minimal";
 
   const [providerId, setProviderId] = useState(initialProvider);
   const [modelId, setModelId] = useState(initialModel);

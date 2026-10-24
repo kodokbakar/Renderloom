@@ -77,44 +77,25 @@ if (process.env.PLAYWRIGHT_TEST) {
       );
     });
 
-    test("renders telemetry parameters in generation settings bar", async ({
-      page,
-    }) => {
-      const settingsBar = page.locator(".generation-settings-bar");
-      await expect(settingsBar).toBeVisible();
+    test("renders parameters in studio controls", async ({ page }) => {
+      const controls = page.locator(".studio-controls");
+      await expect(controls).toBeVisible();
 
-      const chips = settingsBar.locator(".settings-chip");
-      await expect(chips).toHaveCount(5);
-
-      // Provider chip
-      await expect(chips.nth(0).locator(".chip-label")).toHaveText("Provider:");
-      await expect(chips.nth(0).locator(".chip-value")).toHaveText("anthropic");
-
-      // Model chip
-      await expect(chips.nth(1).locator(".chip-label")).toHaveText("Model:");
-      await expect(chips.nth(1).locator(".chip-value")).toHaveText(
-        "claude-3-5-sonnet",
-      );
-
-      // Style chip
-      await expect(chips.nth(2).locator(".chip-label")).toHaveText("Style:");
-      await expect(chips.nth(2).locator(".chip-value")).toHaveText(
-        "tech-minimal",
-      );
-
-      // Dimensions chip
-      await expect(chips.nth(3).locator(".chip-label")).toHaveText(
-        "Dimensions:",
-      );
-      await expect(chips.nth(3).locator(".chip-value")).toHaveText(
-        "1024 × 1024",
-      );
-
-      // Candidates count chip
-      await expect(chips.nth(4).locator(".chip-label")).toHaveText(
-        "Candidates:",
-      );
-      await expect(chips.nth(4).locator(".chip-value")).toHaveText("4");
+      await expect(
+        controls.locator('[data-testid="studio-provider-select"]'),
+      ).toHaveValue("anthropic");
+      await expect(
+        controls.locator('[data-testid="studio-model-select"]'),
+      ).toHaveValue("claude-3-5-sonnet");
+      await expect(
+        controls.locator('[data-testid="studio-style-select"]'),
+      ).toHaveValue("tech-minimal");
+      await expect(
+        controls.locator('[data-testid="studio-ratio-1:1"]'),
+      ).toHaveClass(/active/);
+      await expect(
+        controls.locator('[data-testid="candidate-count-4"]'),
+      ).toHaveClass(/active/);
     });
   });
 }

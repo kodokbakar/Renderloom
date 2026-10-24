@@ -19,6 +19,10 @@ export function resolvePresetsDir(customDir?: string): string {
   }
   return cwdPresets;
 }
+const STYLE_ALIASES: Record<string, { targetId: string; name?: string }> = {
+  "tech-minimal": { targetId: "minimal", name: "Tech Minimal" },
+  "modern-clean": { targetId: "minimal", name: "Modern Clean" },
+};
 
 export class StyleRegistry {
   private readonly presetsDir: string;
@@ -95,17 +99,32 @@ export class StyleRegistry {
   async getPreset(id: string): Promise<StylePreset> {
     const cache = await this.loadPresets();
     const preset = cache.get(id);
-    if (!preset) {
-      throw new ValidationError(
-        `Style preset '${id}' not found. Available styles: ${Array.from(cache.keys()).join(", ")}`,
-      );
+    if (preset) {
+      return preset;
     }
-    return preset;
+    const alias = STYLE_ALIASES[id];
+    if (alias) {
+      const targetPreset = cache.get(alias.targetId);
+      if (targetPreset) {
+        return {
+          ...targetPreset,
+          id,
+          name: alias.name ?? targetPreset.name,
+        };
+      }
+    }
+    throw new ValidationError(
+      `Style preset '${id}' not found. Available styles: ${Array.from(cache.keys()).join(", ")}`,
+    );
   }
 
   async hasPreset(id: string): Promise<boolean> {
     const cache = await this.loadPresets();
-    return cache.has(id);
+    if (cache.has(id)) {
+      return true;
+    }
+    const alias = STYLE_ALIASES[id];
+    return Boolean(alias && cache.has(alias.targetId));
   }
 
   async formatStyleInstructions(id: string): Promise<string> {
