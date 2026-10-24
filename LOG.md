@@ -205,3 +205,26 @@
   - `tests/components/version-history.test.tsx`
   - `tests/app/app-revision-integration.test.tsx`
 - Verified: `bun test` (503 passing tests across 66 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite production build).
+
+### Phase 8: Reliability, Security and Automated Verification
+- Implemented structured JSON logging module in `src/shared/logger.ts` and re-exported in `src/shared/index.ts` and `src/security/index.ts`:
+  - Emits single-line JSON with timestamps, log levels (`debug`, `info`, `warn`, `error`), `eventType`, `jobId`, `candidateId`, `stage`, and sanitized `errorCode`.
+  - Recursive secret and header scrubbing for credentials, tokens, bearer headers, API keys (`sk-`, `sk-ant-`, `AIza-`), and sensitive payload keys.
+  - Error instance serialization with stack and message sanitization.
+  - Configurable log sinks via `setLogSink` and level thresholds via `setLogLevel`.
+- Enforced renderer resource limits and security guards:
+  - Added limit constants to `src/domain/dimensions.ts`: `MAX_ASSET_BYTES` (5 MB), `MAX_SVG_BYTES` (10 MB), `MAX_RENDER_DURATION_MS` (30 seconds), `MAX_AST_DEPTH` (64), `MAX_AST_NODES` (2000).
+  - Added `timeoutMs?: number` to `RenderOptions` in `src/renderer/types.ts`.
+  - Enforced asset size limits in `src/renderer/assets.ts`: decoded data URL payload and filesystem asset files capped at `MAX_ASSET_BYTES`.
+  - Enforced AST traversal limits in `src/renderer/validator.ts`: AST depth cap (`MAX_AST_DEPTH`) and node count cap (`MAX_AST_NODES`).
+  - Blocked prototype pollution vectors in `src/renderer/validator.ts`: rejected attribute names and style property keys matching `__proto__`, `constructor`, `prototype`.
+  - Enforced SVG payload size (`MAX_SVG_BYTES`) and render execution duration timeout (`timeoutMs ?? MAX_RENDER_DURATION_MS`) in `src/renderer/render.ts`.
+- Created penetration and security verification test suites:
+  - `tests/security/logger.test.ts`: JSON format, secret scrubbing, auth header masking, error sanitization, circular reference safety, and custom sinks.
+  - `tests/renderer/resource-limits.test.ts`: asset byte caps, SVG size caps, AST depth bombs, node count bombs, prototype pollution guards, and render timeouts.
+  - `tests/security/malicious-source.test.ts`: static/dynamic imports, require, execution keywords (`eval`, `Function`, `setTimeout`, `setInterval`), globals (`window`, `process`, `globalThis`), spreads, event handlers, dangerous tags, malicious URLs (`javascript:`, `vbscript:`, null bytes), and data-only interpretation verification.
+  - `tests/sessions/filesystem-resilience.test.ts`: simulated disk-full (`ENOSPC`), permission denials (`EACCES`), interrupted write aborts with orphaned `.tmp` cleanup, partial batch resilience, and session reopen integrity.
+  - `tests/llm/live-provider.smoke.test.ts`: gated live provider test cleanly skipped without network calls during normal testing (`RENDERLOOM_LIVE_TEST=true` only).
+  - `tests/security/license-review.test.ts`: audited runtime dependencies for permissive licenses (`MIT`, `Apache-2.0`, `BSD`, `ISC`, `MPL-2.0`) and verified Roboto font SIL OFL 1.1 license.
+- Updated `ROADMAP.md`: marked Phase 8 release-blocking checklist items completed.
+- Verified: `bun test` (all tests passing), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite production build).
