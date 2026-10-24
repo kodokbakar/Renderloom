@@ -136,5 +136,72 @@ if (process.env.PLAYWRIGHT_TEST) {
       await expect(banner).toContainText("Viewing historical version");
       await expect(banner.locator(".btn-restore-banner")).toBeVisible();
     });
+
+    test("navigates candidates inside preview modal via keyboard arrows with boundary enforcement", async ({
+      page,
+    }) => {
+      const card1 = page.locator('.candidate-card[data-candidate-id="cand-1"]');
+      await card1.locator(".btn-inspect-overlay").click();
+
+      const modal = page.locator('.preview-modal-dialog[role="dialog"]');
+      await expect(modal).toBeVisible();
+      await expect(modal.locator(".preview-candidate-title")).toHaveText(
+        "Geometric Monogram",
+      );
+
+      // At first candidate (index 0), Previous Candidate button is not present
+      await expect(
+        modal.locator('button[aria-label="Previous Candidate"]'),
+      ).toHaveCount(0);
+
+      // Pressing ArrowLeft at boundary does nothing
+      await page.keyboard.press("ArrowLeft");
+      await expect(modal.locator(".preview-candidate-title")).toHaveText(
+        "Geometric Monogram",
+      );
+
+      // Navigate right through candidates
+      await page.keyboard.press("ArrowRight");
+      await expect(modal.locator(".preview-candidate-title")).toHaveText(
+        "Architectural Emblem",
+      );
+
+      await page.keyboard.press("ArrowRight");
+      await expect(modal.locator(".preview-candidate-title")).toHaveText(
+        "Abstract Wireframe",
+      );
+
+      await page.keyboard.press("ArrowRight");
+      await expect(modal.locator(".preview-candidate-title")).toHaveText(
+        "Precision Lattice",
+      );
+
+      // At last candidate, Next Candidate button is not present
+      await expect(
+        modal.locator('button[aria-label="Next Candidate"]'),
+      ).toHaveCount(0);
+
+      // Pressing ArrowRight at end boundary does nothing
+      await page.keyboard.press("ArrowRight");
+      await expect(modal.locator(".preview-candidate-title")).toHaveText(
+        "Precision Lattice",
+      );
+    });
+
+    test("dismisses preview modal on backdrop click outside dialog", async ({
+      page,
+    }) => {
+      const card1 = page.locator('.candidate-card[data-candidate-id="cand-1"]');
+      await card1.locator(".btn-inspect-overlay").click();
+
+      const modal = page.locator('.preview-modal-dialog[role="dialog"]');
+      await expect(modal).toBeVisible();
+
+      // Click top-left edge of backdrop outside the modal dialog
+      const backdrop = page.locator(".preview-modal-backdrop");
+      await backdrop.click({ position: { x: 5, y: 5 } });
+
+      await expect(modal).not.toBeVisible();
+    });
   });
 }

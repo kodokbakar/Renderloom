@@ -95,5 +95,41 @@ if (process.env.PLAYWRIGHT_TEST) {
         expect(Math.abs(sidebarBox.x - mainContentBox.x)).toBeLessThan(15);
       }
     });
+
+    test("handles preview modal layout, tab navigation, and dismissal on mobile viewport", async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+      await setupMockRoutes(page);
+      await page.goto("/");
+
+      // Open preview modal
+      await page.locator('.candidate-card[data-candidate-id="cand-1"]').click();
+      await page.keyboard.press("Enter");
+
+      const modal = page.locator('.preview-modal-dialog[role="dialog"]');
+      await expect(modal).toBeVisible();
+
+      // Modal dialog width fits within mobile viewport
+      const modalBox = await modal.boundingBox();
+      expect(modalBox).not.toBeNull();
+      if (modalBox) {
+        expect(modalBox.width).toBeLessThanOrEqual(375);
+      }
+
+      // Switch to JSX tab in mobile modal
+      const tabBar = modal.locator('.preview-tab-bar[role="tablist"]');
+      const jsxTab = tabBar.locator('button[role="tab"]').nth(1);
+      await jsxTab.click();
+      await expect(jsxTab).toHaveAttribute("aria-selected", "true");
+
+      const sourceViewer = modal.locator(".source-viewer");
+      await expect(sourceViewer).toBeVisible();
+
+      // Close modal on mobile via close button
+      const closeBtn = modal.locator(".btn-modal-close");
+      await closeBtn.click();
+      await expect(modal).not.toBeVisible();
+    });
   });
 }

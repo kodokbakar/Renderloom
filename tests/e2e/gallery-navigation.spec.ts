@@ -85,5 +85,26 @@ if (process.env.PLAYWRIGHT_TEST) {
       await expect(card1).toHaveClass(/selected/);
       await expect(card1).toHaveAttribute("aria-pressed", "true");
     });
+
+    test("wraps around candidate selection at boundaries via keyboard arrow keys", async ({
+      page,
+    }) => {
+      const card1 = page.locator('.candidate-card[data-candidate-id="cand-1"]');
+      const card4 = page.locator('.candidate-card[data-candidate-id="cand-4"]');
+
+      // Focus card 1
+      await card1.focus();
+      await expect(card1).toHaveClass(/selected/);
+
+      // ArrowLeft at beginning wraps to last candidate (card 4)
+      await page.keyboard.press("ArrowLeft");
+      await expect(card4).toHaveClass(/selected/);
+      await expect(card4).toHaveAttribute("aria-pressed", "true");
+
+      // ArrowRight at end wraps back to first candidate (card 1)
+      await page.keyboard.press("ArrowRight");
+      await expect(card1).toHaveClass(/selected/);
+      await expect(card1).toHaveAttribute("aria-pressed", "true");
+    });
   });
 }
