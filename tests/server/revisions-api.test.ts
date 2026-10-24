@@ -153,6 +153,7 @@ describe("Revisions HTTP API", () => {
     await sessionService.saveCandidate(sessionId, initialCandidate);
 
     server = createServer({
+      port: 0,
       sessionService,
       keyStore,
       providerRegistry,
