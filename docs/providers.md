@@ -6,13 +6,13 @@ Renderloom operates on a **Bring Your Own Key (BYOK)** model. You provide API ke
 
 ## Supported Providers
 
-Renderloom currently ships with built-in adapters for two primary LLM providers:
+Renderloom currently ships with built-in adapters for three primary LLM providers:
 
 | Provider | ID | Default Model | Supported Preset Models | Custom Base URL? |
 |----------|----|---------------|-------------------------|-------------------|
 | **OpenAI** | `openai` | `gpt-4o` | `gpt-4o`, `gpt-4o-mini`, `o3-mini` | Yes (with security validation) |
 | **Anthropic** | `anthropic` | `claude-3-5-sonnet-20241022` | `claude-3-5-sonnet-20241022`, `claude-3-5-haiku-20241022`, `claude-3-opus-20240229` | No (fixed `https://api.anthropic.com/v1`) |
-
+| **Custom (OpenAI-Compatible)** | `custom` | `llama3` | `llama3`, `mistral`, `deepseek-chat`, `qwen2.5-coder` | Yes (defaults to `http://localhost:11434/v1`) |
 ---
 
 ## Model Selection and Custom Model IDs
@@ -21,6 +21,30 @@ In addition to built-in presets, Renderloom allows you to type any valid custom 
 - **OpenAI:** Any chat completion compatible model ID (e.g. fine-tuned models, preview models, or models hosted on OpenAI-compatible proxies).
 - **Anthropic:** Any Claude Messages API compatible model ID.
 
+- **Custom (OpenAI-Compatible):** Any model ID hosted by your local engine (e.g. `llama3.2`, `mistral:7b`, `qwen2.5-coder:14b`) or cloud endpoint (e.g. `deepseek-reasoner`, `llama-3.3-70b-versatile`). You can type any model ID directly in the model input.
+
+---
+
+## Custom Provider Setup (Local Engines & Cloud Endpoints)
+
+The `custom` provider adapter implements the OpenAI wire protocol (`/chat/completions` and `/models`) and supports both local inference engines without API keys and OpenAI-compatible cloud services with API keys.
+
+### 1. Local Inference Engines (No API Key Required)
+When running a local engine, leave the API key blank in Settings:
+- **Ollama:** Set Base URL to `http://localhost:11434/v1`. Pull models using `ollama pull llama3` or `ollama pull qwen2.5-coder`.
+- **vLLM:** Set Base URL to your instance URL (e.g. `http://localhost:8000/v1`).
+- **LM Studio:** Set Base URL to `http://localhost:1234/v1` after starting local inference server.
+- **LocalAI:** Set Base URL to `http://localhost:8080/v1`.
+
+### 2. Cloud Endpoints (OpenAI-Compatible with API Key)
+For cloud providers implementing the OpenAI chat completions format, enter your API key and their base URL:
+- **OpenRouter:** Base URL `https://openrouter.ai/api/v1` with your OpenRouter key.
+- **DeepSeek:** Base URL `https://api.deepseek.com/v1` with your DeepSeek key.
+- **Groq:** Base URL `https://api.groq.com/openai/v1` with your Groq key.
+
+### 3. Wire Protocol & Authorization Header Behavior
+- When an API key is provided, requests include `Authorization: Bearer <key>`.
+- When no API key is entered (or the key is blank), the `Authorization` header is omitted, ensuring local endpoints that do not accept auth headers (or fail with invalid token formats) operate smoothly.
 ---
 
 ## In-Memory Key Lifecycle and Security
