@@ -11,8 +11,7 @@ export function formatTimingDuration(ms?: number | null): string {
 
   if (ms < 60000) {
     const s = ms / 1000;
-    // e.g. 1.2s, 14.5s
-    return `${s.toFixed(s >= 10 ? 1 : 2)}s`;
+    return `${s.toFixed(1)}s`;
   }
 
   const minutes = Math.floor(ms / 60000);
