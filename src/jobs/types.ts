@@ -1,4 +1,5 @@
 import type { Candidate } from "../domain/candidate";
+import type { Version } from "../domain/version";
 
 export type BatchStatus =
   | "queued"
@@ -59,4 +60,29 @@ export interface BatchView {
     failed: number;
     cancelled: number;
   };
+}
+
+export interface ReviseCandidateOptions {
+  sessionId: string;
+  candidateId: string;
+  prompt: string;
+  parentVersionId?: string;
+  providerId?: string;
+  modelId?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  temperature?: number;
+  maxRetries?: number;
+  retryBaseDelayMs?: number;
+  signal?: AbortSignal;
+}
+
+export interface CandidateRevisionResult {
+  candidate: Candidate;
+  version: Version;
+}
+
+export interface RestoreVersionResult {
+  candidate: Candidate;
+  restoredVersion: Version;
 }

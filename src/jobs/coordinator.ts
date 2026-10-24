@@ -1,23 +1,35 @@
+import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { readFile } from "node:fs/promises";
 import type { Candidate } from "../domain/candidate";
 import { MAX_CANDIDATE_COUNT, MIN_CANDIDATE_COUNT } from "../domain/dimensions";
-import { ValidationError } from "../domain/errors";
+import { ProviderError, RenderError, ValidationError } from "../domain/errors";
+import type { LLMGenerationResponse } from "../domain/provider";
 import type { BatchSummary } from "../domain/session";
+import type { Version } from "../domain/version";
 import type { InMemoryKeyStore } from "../llm/keystore";
 import type { ProviderRegistry } from "../llm/registry";
 import { composePrompt } from "../prompts/composer";
+import { composeRevisionPrompt } from "../prompts/revision-composer";
+import { render } from "../renderer/render";
+import { validateJsx } from "../renderer/validator";
+import { redactSecrets } from "../security/redact";
 import type { SessionService } from "../sessions/service";
 import type { StyleRegistry } from "../styles/registry";
 import { executeCandidateJob, formatCandidateId } from "./executor";
+import { normalizeCandidateResponse } from "./parser";
 import { BoundedQueue } from "./queue";
+import { calculateBackoff, isRetryableError, sleepWithAbort } from "./retry";
 import type {
   BatchStatus,
   BatchView,
   CandidateJobRecord,
+  CandidateRevisionResult,
   GenerationBatch,
+  RestoreVersionResult,
+  ReviseCandidateOptions,
   StartGenerationOptions,
 } from "./types";
-
 export interface CoordinatorDependencies {
   sessionService: SessionService;
   providerRegistry: ProviderRegistry;
@@ -551,5 +563,315 @@ export class GenerationCoordinator extends EventEmitter {
 
     record.promise = jobPromise;
     return jobPromise;
+  }
+
+  async reviseCandidate(
+    options: ReviseCandidateOptions,
+  ): Promise<CandidateRevisionResult> {
+    const fullSession = await this.sessionService.getSession(options.sessionId);
+    const session = fullSession.session;
+    const candidates = session.candidates ?? [];
+    const candidate = candidates.find((c) => c.id === options.candidateId);
+    if (!candidate) {
+      throw new ValidationError(
+        `Candidate '${options.candidateId}' not found in session '${options.sessionId}'`,
+      );
+    }
+
+    const parentVersionId =
+      options.parentVersionId ?? candidate.currentVersionId ?? "v001";
+    const versions = candidate.versions ?? [];
+    let parentVersion = versions.find((v) => v.id === parentVersionId);
+    if (!parentVersion) {
+      if (candidate.state === "completed" && candidate.artifacts?.sourcePath) {
+        parentVersion = {
+          id: parentVersionId,
+          candidateId: candidate.id,
+          versionNumber: 1,
+          promptSnapshot: fullSession.promptSnapshot,
+          jsxSourcePath: candidate.artifacts.sourcePath,
+          svgPath: candidate.artifacts.svgPath || "",
+          pngPath: candidate.artifacts.pngPath || "",
+          createdAt: candidate.timings?.completedAt || candidate.createdAt,
+          label: candidate.label,
+          rationale: candidate.rationale,
+        };
+      } else {
+        throw new ValidationError(
+          `Parent version '${parentVersionId}' not found for candidate '${candidate.id}'`,
+        );
+      }
+    }
+
+    const filename = parentVersion.jsxSourcePath.split("/").pop();
+    if (!filename) {
+      throw new ValidationError(
+        `Invalid JSX source path '${parentVersion.jsxSourcePath}' for version '${parentVersion.id}'`,
+      );
+    }
+    const { filePath } = await this.sessionService.getArtifactPath(
+      session.id,
+      "source",
+      filename,
+    );
+    const currentJsx = await readFile(filePath, "utf-8");
+
+    const styleId = session.styleId;
+    const width = session.dimensions?.width ?? 1024;
+    const height = session.dimensions?.height ?? 1024;
+
+    const composed = await composeRevisionPrompt(
+      {
+        candidateId: candidate.id,
+        currentJsx,
+        revisionPrompt: options.prompt,
+        styleId,
+        width,
+        height,
+        parentVersionId: parentVersion.id,
+        conversationMessages: fullSession.conversation?.messages,
+      },
+      { styleRegistry: this.styleRegistry },
+    );
+
+    const providerId = options.providerId ?? session.providerId;
+    const modelId = options.modelId ?? session.modelId;
+    const storedKey = this.keyStore.getKey(providerId);
+    const apiKey = options.apiKey ?? storedKey?.apiKey;
+    const baseUrl = options.baseUrl ?? storedKey?.baseUrl;
+    if (!apiKey) {
+      throw new ValidationError(`Missing API key for provider '${providerId}'`);
+    }
+    const providerAdapter = this.providerRegistry.get(providerId);
+    if (!providerAdapter) {
+      throw new ValidationError(`Unknown provider '${providerId}'`);
+    }
+
+    return this.queue.enqueue(async () => {
+      try {
+        let rawText = "";
+        let response: LLMGenerationResponse;
+        let attempt = 0;
+        const maxRetries = options.maxRetries ?? 2;
+        const retryBaseDelayMs = options.retryBaseDelayMs ?? 500;
+
+        while (true) {
+          if (options.signal?.aborted) {
+            throw new Error("Cancelled by caller");
+          }
+          try {
+            response = await providerAdapter.generate({
+              prompt: composed.userPrompt,
+              systemPrompt: composed.systemPrompt,
+              modelId,
+              apiKey,
+              baseUrl,
+              temperature: options.temperature,
+              signal: options.signal,
+            });
+            rawText = response.rawText;
+            break;
+          } catch (err: unknown) {
+            if (options.signal?.aborted) throw err;
+            const retryable = isRetryableError(err);
+            if (retryable && attempt < maxRetries) {
+              const delay = calculateBackoff(attempt, retryBaseDelayMs);
+              attempt++;
+              await sleepWithAbort(delay, options.signal);
+              continue;
+            }
+            throw err;
+          }
+        }
+
+        const contract = normalizeCandidateResponse(rawText, {
+          expectedIndex: candidate.index,
+        });
+
+        validateJsx(contract.jsx);
+
+        const renderResult = await render(contract.jsx, { width, height });
+
+        const existingVersions =
+          candidate.versions && candidate.versions.length > 0
+            ? candidate.versions
+            : [parentVersion];
+        const maxVersionNumber = existingVersions.reduce(
+          (max, v) => Math.max(max, v.versionNumber),
+          0,
+        );
+        const nextVersionNumber = maxVersionNumber + 1;
+        const nextVersionId = `v${String(nextVersionNumber).padStart(3, "0")}`;
+
+        const jsxFilename = `${candidate.id}-${nextVersionId}.jsx`;
+        const svgFilename = `${candidate.id}-${nextVersionId}.svg`;
+        const pngFilename = `${candidate.id}-${nextVersionId}.png`;
+
+        await this.sessionService.saveArtifact(
+          session.id,
+          "source",
+          jsxFilename,
+          contract.jsx,
+        );
+        await this.sessionService.saveArtifact(
+          session.id,
+          "svg",
+          svgFilename,
+          renderResult.svg,
+        );
+        await this.sessionService.saveArtifact(
+          session.id,
+          "images",
+          pngFilename,
+          renderResult.png,
+        );
+
+        const newVersion: Version = {
+          id: nextVersionId,
+          candidateId: candidate.id,
+          versionNumber: nextVersionNumber,
+          parentVersionId: parentVersion.id,
+          promptSnapshot: composed.effectivePrompt,
+          revisionPrompt: options.prompt.trim(),
+          jsxSourcePath: `source/${jsxFilename}`,
+          svgPath: `svg/${svgFilename}`,
+          pngPath: `images/${pngFilename}`,
+          createdAt: new Date().toISOString(),
+          label: contract.label,
+          rationale: contract.rationale,
+          modelMetadata: {
+            providerId,
+            modelId: response.modelId || modelId,
+            durationMs: response.durationMs,
+            usage: response.usage,
+          },
+        };
+
+        candidate.currentVersionId = nextVersionId;
+        candidate.versions = [...existingVersions, newVersion];
+        candidate.artifacts = {
+          sourcePath: newVersion.jsxSourcePath,
+          svgPath: newVersion.svgPath,
+          pngPath: newVersion.pngPath,
+        };
+        if (contract.label) candidate.label = contract.label;
+        if (contract.rationale) candidate.rationale = contract.rationale;
+        candidate.lastRevisionError = undefined;
+        candidate.updatedAt = new Date().toISOString();
+
+        await this.sessionService.saveCandidate(session.id, candidate);
+
+        await this.sessionService.appendConversationMessage(session.id, {
+          id: `msg-${randomUUID()}`,
+          role: "user",
+          content: options.prompt.trim(),
+          timestamp: new Date().toISOString(),
+          candidateId: candidate.id,
+          versionId: nextVersionId,
+        });
+
+        await this.sessionService.appendConversationMessage(session.id, {
+          id: `msg-${randomUUID()}`,
+          role: "assistant",
+          content:
+            contract.rationale ||
+            `Revised candidate ${candidate.id} to version ${nextVersionId}`,
+          timestamp: new Date().toISOString(),
+          candidateId: candidate.id,
+          versionId: nextVersionId,
+        });
+
+        this.emit("candidate_revised", {
+          sessionId: session.id,
+          candidate,
+          version: newVersion,
+        });
+
+        return { candidate, version: newVersion };
+      } catch (err: unknown) {
+        const rawMsg = err instanceof Error ? err.message : String(err);
+        const sanitizedMsg = redactSecrets(rawMsg);
+        let code = "REVISION_FAILED";
+        if (
+          err instanceof ValidationError ||
+          err instanceof RenderError ||
+          err instanceof ProviderError
+        ) {
+          code = err.code;
+        }
+
+        candidate.lastRevisionError = {
+          message: sanitizedMsg,
+          code,
+          parentVersionId: parentVersion.id,
+          attemptedAt: new Date().toISOString(),
+        };
+        candidate.updatedAt = new Date().toISOString();
+
+        try {
+          await this.sessionService.saveCandidate(session.id, candidate);
+        } catch {
+          // Non-critical persistence failure
+        }
+
+        this.emit("candidate_revision_failed", {
+          sessionId: session.id,
+          candidate,
+          error: sanitizedMsg,
+          code,
+        });
+
+        throw err;
+      }
+    }, `${candidate.id}-revision`);
+  }
+
+  async restoreCandidateVersion(
+    sessionId: string,
+    candidateId: string,
+    versionId: string,
+  ): Promise<RestoreVersionResult> {
+    const fullSession = await this.sessionService.getSession(sessionId);
+    const session = fullSession.session;
+    const candidates = session.candidates ?? [];
+    const candidate = candidates.find((c) => c.id === candidateId);
+    if (!candidate) {
+      throw new ValidationError(
+        `Candidate '${candidateId}' not found in session '${sessionId}'`,
+      );
+    }
+
+    const versions = candidate.versions ?? [];
+    const targetVersion = versions.find((v) => v.id === versionId);
+    if (!targetVersion) {
+      throw new ValidationError(
+        `Version '${versionId}' not found for candidate '${candidateId}'`,
+      );
+    }
+
+    candidate.currentVersionId = targetVersion.id;
+    candidate.artifacts = {
+      sourcePath: targetVersion.jsxSourcePath,
+      svgPath: targetVersion.svgPath,
+      pngPath: targetVersion.pngPath,
+    };
+    if (targetVersion.label) {
+      candidate.label = targetVersion.label;
+    }
+    if (targetVersion.rationale) {
+      candidate.rationale = targetVersion.rationale;
+    }
+    candidate.lastRevisionError = undefined;
+    candidate.updatedAt = new Date().toISOString();
+
+    await this.sessionService.saveCandidate(session.id, candidate);
+
+    this.emit("candidate_version_restored", {
+      sessionId: session.id,
+      candidate,
+      restoredVersion: targetVersion,
+    });
+
+    return { candidate, restoredVersion: targetVersion };
   }
 }
