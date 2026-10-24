@@ -508,7 +508,18 @@ export class SessionService {
       session.lastBatchStatus = summary.status;
       session.lastBatchSummary = summary;
       if (finalCandidates) {
-        session.candidates = finalCandidates;
+        const candidates = session.candidates ? [...session.candidates] : [];
+        for (const candidate of finalCandidates) {
+          const existingIdx = candidates.findIndex(
+            (c) => c.id === candidate.id,
+          );
+          if (existingIdx !== -1) {
+            candidates[existingIdx] = candidate;
+          } else {
+            candidates.push(candidate);
+          }
+        }
+        session.candidates = candidates;
       }
       session.updatedAt = new Date().toISOString();
 

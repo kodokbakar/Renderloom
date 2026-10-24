@@ -342,7 +342,12 @@ export class GenerationCoordinator extends EventEmitter {
     const batch = this.batches.get(batchId);
     if (!batch) return false;
 
-    if (batch.status === "completed" || batch.status === "failed") {
+    if (
+      batch.status === "completed" ||
+      batch.status === "failed" ||
+      batch.status === "cancelled" ||
+      batch.status === "partial_success"
+    ) {
       return false;
     }
 
@@ -373,6 +378,13 @@ export class GenerationCoordinator extends EventEmitter {
 
     const record = batch.candidates.find((c) => c.candidateId === candidateId);
     if (!record) return false;
+    if (
+      record.candidate.state === "completed" ||
+      record.candidate.state === "failed" ||
+      record.candidate.state === "cancelled"
+    ) {
+      return false;
+    }
 
     if (record.candidate.state === "queued") {
       this.queue.cancel(candidateId);
