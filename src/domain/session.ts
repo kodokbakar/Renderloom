@@ -54,6 +54,7 @@ export interface ConversationMessage {
   content: string;
   timestamp: string;
   candidateId?: string;
+  versionId?: string;
 }
 
 export interface Conversation {

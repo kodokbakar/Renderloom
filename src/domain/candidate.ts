@@ -1,3 +1,12 @@
+import type { Version } from "./version";
+
+export interface RevisionError {
+  message: string;
+  code?: string;
+  parentVersionId?: string;
+  attemptedAt: string;
+}
+
 export type CandidateState =
   | "queued"
   | "generating"
@@ -33,6 +42,8 @@ export interface Candidate {
   label?: string;
   rationale?: string;
   currentVersionId?: string;
+  versions?: Version[];
+  lastRevisionError?: RevisionError;
   errorMessage?: string;
   errorCode?: string;
   retries?: number;
