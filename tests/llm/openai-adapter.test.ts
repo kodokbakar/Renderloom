@@ -157,4 +157,29 @@ describe("OpenAI Adapter", () => {
     expect(result.success).toBe(false);
     expect(result.code).toBe("NETWORK_ERROR");
   });
+
+  test("generate aborts in-flight request when signal is triggered", async () => {
+    const controller = new AbortController();
+    const { promise: fetchPromise, reject } = Promise.withResolvers<Response>();
+    const mockFetch: FetchFunction = async (_url, init) => {
+      init?.signal?.addEventListener("abort", () => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        reject(err);
+      });
+      return fetchPromise;
+    };
+
+    const adapter = new OpenAIAdapter({ fetchFn: mockFetch });
+    const promise = adapter.generate({
+      prompt: "test",
+      modelId: "gpt-4o",
+      apiKey: "sk-test",
+      signal: controller.signal,
+    });
+
+    controller.abort();
+
+    await expect(promise).rejects.toThrow("Request cancelled by caller");
+  });
 });

@@ -125,6 +125,7 @@ export class OpenAIAdapter implements ProviderAdapter {
         body: JSON.stringify(payload),
         fetchFn: this.fetchFn,
         timeoutMs: 60000,
+        signal: request.signal,
       },
       this.id,
     );
