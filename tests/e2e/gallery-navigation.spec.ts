@@ -5,7 +5,7 @@ if (process.env.PLAYWRIGHT_TEST) {
   test.describe("Candidate Gallery & Card Interaction", () => {
     test.beforeEach(async ({ page }) => {
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
     });
 
     test("renders all candidate cards in architectural exhibition grid", async ({

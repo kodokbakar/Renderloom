@@ -7,7 +7,7 @@ if (process.env.PLAYWRIGHT_TEST) {
       page,
     }) => {
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
 
       const indicator = page.locator(".batch-progress-indicator");
       await expect(indicator).toBeVisible();
@@ -30,7 +30,7 @@ if (process.env.PLAYWRIGHT_TEST) {
       page,
     }) => {
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
 
       const failedCard = page.locator(
         '.candidate-card[data-candidate-id="cand-3"]',
@@ -52,7 +52,7 @@ if (process.env.PLAYWRIGHT_TEST) {
       page,
     }) => {
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
 
       const failedCard = page.locator(
         '.candidate-card[data-candidate-id="cand-3"]',
@@ -81,7 +81,7 @@ if (process.env.PLAYWRIGHT_TEST) {
       page,
     }) => {
       await setupMockRoutes(page, { emptySession: true });
-      await page.goto("/");
+      await page.goto("/#/studio");
 
       const emptyState = page.locator(
         '.empty-state[data-empty-type="new-session"]',

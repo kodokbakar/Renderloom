@@ -5,7 +5,7 @@ if (process.env.PLAYWRIGHT_TEST) {
   test.describe("Candidate Inspection & Preview Modal", () => {
     test.beforeEach(async ({ page }) => {
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
     });
 
     test("opens preview modal on inspect overlay trigger and shows candidate details", async ({
