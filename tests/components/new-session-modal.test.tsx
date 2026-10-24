@@ -71,4 +71,31 @@ describe("NewSessionModal", () => {
     expect(html).toContain('list="new-session-custom-models"');
     expect(html).not.toContain('data-testid="new-session-model-select"');
   });
+
+  test("renders custom model datalist options and default model value when Custom provider is active", () => {
+    const html = renderToStaticMarkup(
+      <NewSessionModal
+        isOpen={true}
+        onClose={() => {}}
+        onCreate={async () => {}}
+        providers={[
+          {
+            id: "custom",
+            name: "Custom (OpenAI-Compatible)",
+            supportsCustomBaseUrl: true,
+            defaultModelId: "llama3",
+            models: [
+              { id: "llama3", name: "Llama 3" },
+              { id: "mistral-nemo", name: "Mistral Nemo" },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(html).toContain('data-testid="new-session-custom-model-input"');
+    expect(html).toContain('value="llama3"');
+    expect(html).toContain('<option value="llama3"');
+    expect(html).toContain('<option value="mistral-nemo"');
+  });
 });

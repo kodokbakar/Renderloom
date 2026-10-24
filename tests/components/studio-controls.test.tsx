@@ -70,4 +70,26 @@ describe("StudioControls", () => {
     expect(html).toContain('list="studio-custom-models"');
     expect(html).not.toContain('data-testid="studio-model-select"');
   });
+
+  test("renders custom model text input populated with custom model ID and datalist options", () => {
+    const customSession: Session = {
+      ...mockSession,
+      providerId: "custom",
+      modelId: "qwen2.5-coder:32b",
+    };
+
+    const html = renderToStaticMarkup(
+      <StudioControls
+        session={customSession}
+        isGenerating={false}
+        onGenerate={async () => {}}
+      />,
+    );
+
+    expect(html).toContain('data-testid="studio-custom-model-input"');
+    expect(html).toContain('value="qwen2.5-coder:32b"');
+    expect(html).toContain('list="studio-custom-models"');
+    expect(html).toContain('<option value="llama3"');
+    expect(html).toContain('<option value="qwen2.5-coder"');
+  });
 });

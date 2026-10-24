@@ -222,4 +222,132 @@ describe("Custom Adapter", () => {
     controller.abort();
     expect(promise).rejects.toThrow();
   });
+
+  test("testConnection and generate support custom ports and preserve port in target URL", async () => {
+    let capturedModelsUrl: string | undefined;
+    let capturedChatUrl: string | undefined;
+
+    const mockFetch: FetchFunction = async (url) => {
+      const urlStr = String(url);
+      if (urlStr.endsWith("/models")) {
+        capturedModelsUrl = urlStr;
+        return new Response(JSON.stringify({ data: [{ id: "phi3:mini" }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (urlStr.endsWith("/chat/completions")) {
+        capturedChatUrl = urlStr;
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "custom port response" } }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("Not found", { status: 404 });
+    };
+
+    const adapter = new CustomAdapter({ fetchFn: mockFetch });
+
+    const connResult = await adapter.testConnection(
+      "",
+      "phi3:mini",
+      "http://127.0.0.1:8080/v1/",
+    );
+    expect(connResult.success).toBe(true);
+    expect(capturedModelsUrl).toBe("http://127.0.0.1:8080/v1/models");
+
+    const genResult = await adapter.generate({
+      prompt: "Render icon",
+      modelId: "phi3:mini",
+      baseUrl: "http://localhost:5001/v1///",
+      apiKey: "",
+    });
+    expect(genResult.rawText).toBe("custom port response");
+    expect(capturedChatUrl).toBe("http://localhost:5001/v1/chat/completions");
+  });
+
+  test("testConnection sanitizes error message containing raw secret credentials", async () => {
+    const rawSecret = "sk-proj-super-secret-key-1234567890abcdef";
+    const mockFetch: FetchFunction = async () => {
+      return new Response(
+        JSON.stringify({
+          error: {
+            message: `Authentication failed for token ${rawSecret}`,
+          },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    };
+
+    const adapter = new CustomAdapter({ fetchFn: mockFetch });
+    const result = await adapter.testConnection(rawSecret, "llama3");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
+    expect(result.error).not.toContain(rawSecret);
+    expect(result.error).toContain("[REDACTED]");
+  });
+
+  test("generate sanitizes error message containing sensitive tokens on failure", async () => {
+    const sensitiveKey =
+      "sk-ant-api03-abcdef1234567890abcdef1234567890abcdef1234567890-ZZ";
+    const mockFetch: FetchFunction = async () => {
+      return new Response(
+        JSON.stringify({
+          error: {
+            message: `Invalid Authorization header: Bearer ${sensitiveKey}`,
+          },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    };
+
+    const adapter = new CustomAdapter({ fetchFn: mockFetch });
+    let thrownError: Error | undefined;
+    try {
+      await adapter.generate({
+        prompt: "Generate icon",
+        modelId: "llama3",
+        apiKey: sensitiveKey,
+      });
+    } catch (err) {
+      thrownError = err as Error;
+    }
+
+    expect(thrownError).toBeDefined();
+    expect(thrownError?.message).not.toContain(sensitiveKey);
+    expect(thrownError?.message).toContain("[REDACTED]");
+  });
+
+  test("supports switching to arbitrary custom model IDs in testConnection and generate", async () => {
+    let capturedBody: string | undefined;
+
+    const mockFetch: FetchFunction = async (_url, init) => {
+      capturedBody = String(init?.body);
+      return new Response(
+        JSON.stringify({
+          model: "qwen2.5-coder:14b-instruct",
+          choices: [{ message: { content: "ok" } }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    };
+
+    const adapter = new CustomAdapter({ fetchFn: mockFetch });
+
+    const connResult = await adapter.testConnection("", "deepseek-coder:33b");
+    expect(connResult.modelId).toBe("deepseek-coder:33b");
+
+    const genResponse = await adapter.generate({
+      prompt: "Write code",
+      modelId: "qwen2.5-coder:14b",
+      apiKey: "",
+    });
+
+    const parsed = JSON.parse(capturedBody ?? "{}");
+    expect(parsed.model).toBe("qwen2.5-coder:14b");
+    expect(genResponse.modelId).toBe("qwen2.5-coder:14b-instruct");
+  });
 });

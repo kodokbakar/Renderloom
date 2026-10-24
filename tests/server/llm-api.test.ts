@@ -266,4 +266,35 @@ describe("LLM API Routes", () => {
     const json = (await res.json()) as { code: string };
     expect(json.code).toBe("VALIDATION_ERROR");
   });
+
+  test("POST /api/llm/keys and test-connection support custom ports and arbitrary model IDs", async () => {
+    const keyRes = await fetch(`${baseUrl}/api/llm/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        baseUrl: "http://127.0.0.1:8080/v1",
+      }),
+    });
+    expect(keyRes.status).toBe(200);
+    const keyJson = (await keyRes.json()) as { baseUrl: string };
+    expect(keyJson.baseUrl).toBe("http://127.0.0.1:8080/v1");
+
+    const testRes = await fetch(`${baseUrl}/api/llm/test-connection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        modelId: "mistral-nemo:12b",
+        baseUrl: "http://127.0.0.1:8080/v1",
+      }),
+    });
+    expect(testRes.status).toBe(200);
+    const testJson = (await testRes.json()) as {
+      success: boolean;
+      modelId: string;
+    };
+    expect(testJson.success).toBe(true);
+    expect(testJson.modelId).toBe("mistral-nemo:12b");
+  });
 });
