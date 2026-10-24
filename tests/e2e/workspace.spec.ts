@@ -5,7 +5,7 @@ if (process.env.PLAYWRIGHT_TEST) {
   test.describe("Studio Workspace & Navigation", () => {
     test.beforeEach(async ({ page }) => {
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
     });
 
     test("renders studio branding and logotype with craft badges", async ({

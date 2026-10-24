@@ -5,6 +5,8 @@ export interface WorkspaceHeaderProps {
   session: Session;
   sessions?: SessionSummary[];
   onSelectSession?: (sessionId: string) => void;
+  onNavigateDashboard?: () => void;
+  onOpenApiKeys?: () => void;
   promptSnapshot?: string;
   className?: string;
 }
@@ -13,6 +15,8 @@ export function WorkspaceHeader({
   session,
   sessions,
   onSelectSession,
+  onNavigateDashboard,
+  onOpenApiKeys,
   promptSnapshot,
   className = "",
 }: WorkspaceHeaderProps) {
@@ -21,12 +25,24 @@ export function WorkspaceHeader({
   return (
     <header className={`workspace-header ${className}`.trim()}>
       <div className="workspace-header-primary">
-        <div className="workspace-brand">
-          <span className="brand-badge">STUDIO</span>
-          <h1 className="brand-title">Renderloom</h1>
-          <span className="brand-tagline">Review Workspace</span>
+        <div className="workspace-brand-group">
+          {onNavigateDashboard && (
+            <button
+              type="button"
+              className="btn-nav-dashboard"
+              data-testid="nav-dashboard-btn"
+              onClick={onNavigateDashboard}
+              aria-label="Back to Dashboard"
+            >
+              ← Dashboard
+            </button>
+          )}
+          <div className="workspace-brand">
+            <span className="brand-badge">STUDIO</span>
+            <h1 className="brand-title">Renderloom</h1>
+            <span className="brand-tagline">Review Workspace</span>
+          </div>
         </div>
-
         <div className="workspace-session-info">
           <div className="session-title-group">
             <h2 className="session-name" title={session.name}>
@@ -59,8 +75,18 @@ export function WorkspaceHeader({
           )}
         </div>
 
-        {promptSnapshot && (
-          <div className="workspace-header-actions">
+        <div className="workspace-header-actions">
+          {onOpenApiKeys && (
+            <button
+              type="button"
+              className="btn-header-api-keys"
+              data-testid="header-api-keys-btn"
+              onClick={onOpenApiKeys}
+            >
+              API Keys
+            </button>
+          )}
+          {promptSnapshot && (
             <button
               type="button"
               className={`btn-toggle-prompt ${showPrompt ? "active" : ""}`}
@@ -70,8 +96,8 @@ export function WorkspaceHeader({
             >
               {showPrompt ? "Hide Prompt" : "View Prompt"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {promptSnapshot && showPrompt && (

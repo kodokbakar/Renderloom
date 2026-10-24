@@ -182,6 +182,66 @@ export const MOCK_SVG_SOURCE = `<svg xmlns="http://www.w3.org/2000/svg" width="1
   <circle cx="512" cy="512" r="256" stroke="#e5a84b" stroke-width="8" fill="none"/>
   <line x1="256" y1="512" x2="768" y2="512" stroke="#e5a84b" stroke-width="4"/>
 </svg>`;
+
+export const MOCK_PROVIDERS = [
+  {
+    id: "anthropic",
+    name: "Anthropic",
+    supportsCustomBaseUrl: true,
+    defaultModelId: "claude-3-5-sonnet",
+    models: [
+      { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet", isDefault: true },
+      { id: "claude-3-opus", name: "Claude 3 Opus" },
+    ],
+    status: { configured: false },
+  },
+  {
+    id: "openai",
+    name: "OpenAI",
+    supportsCustomBaseUrl: false,
+    defaultModelId: "gpt-4o",
+    models: [
+      { id: "gpt-4o", name: "GPT-4o", isDefault: true },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini" },
+    ],
+    status: { configured: false },
+  },
+];
+
+export const MOCK_STYLES = [
+  {
+    id: "tech-minimal",
+    name: "Tech Minimal",
+    description: "Crisp vector geometry",
+    palette: {
+      background: "#0d0e11",
+      foreground: "#f3f4f6",
+      primary: "#e5a84b",
+      accent: "#e5a84b",
+    },
+    visualSample: {
+      background: "#0d0e11",
+      foreground: "#f3f4f6",
+      accent: "#e5a84b",
+    },
+  },
+  {
+    id: "modern-clean",
+    name: "Modern Clean",
+    description: "Balanced sans typography",
+    palette: {
+      background: "#ffffff",
+      foreground: "#111827",
+      primary: "#3b82f6",
+      accent: "#6366f1",
+    },
+    visualSample: {
+      background: "#ffffff",
+      foreground: "#111827",
+      accent: "#3b82f6",
+    },
+  },
+];
 const TRANSPARENT_PNG_BUFFER = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
   "base64",
@@ -189,14 +249,51 @@ const TRANSPARENT_PNG_BUFFER = Buffer.from(
 
 export async function setupMockRoutes(
   page: Page,
-  options?: { emptySession?: boolean },
+  options?: { emptySession?: boolean; idleSession?: boolean },
 ) {
   await page.route("**/api/sessions", async (route) => {
+    if (route.request().method() === "POST") {
+      const body = JSON.parse(route.request().postData() || "{}");
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          session: {
+            id: "new-session-123",
+            name: body.name || "Geometric Architecture Poster",
+            slug: "geometric-architecture-poster",
+            providerId: body.providerId || "anthropic",
+            modelId: body.modelId || "claude-3-5-sonnet",
+            styleId: body.styleId || "tech-minimal",
+            dimensions: {
+              width: body.width || 1920,
+              height: body.height || 1080,
+            },
+            candidates: [],
+            createdAt: "2026-10-24T12:00:00.000Z",
+            updatedAt: "2026-10-24T12:00:00.000Z",
+          },
+        }),
+      });
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ sessions: MOCK_SESSIONS_LIST }),
     });
+  });
+
+  await page.route("**/api/sessions/*", async (route) => {
+    if (route.request().method() === "DELETE") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ success: true }),
+      });
+      return;
+    }
+    await route.continue();
   });
 
   await page.route("**/api/sessions/studio-brand-identity", async (route) => {
@@ -211,6 +308,26 @@ export async function setupMockRoutes(
             candidates: [],
             lastBatchStatus: "idle",
             activeBatchId: undefined,
+          },
+        }),
+      });
+      return;
+    }
+    if (options?.idleSession) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...MOCK_FULL_SESSION_1,
+          session: {
+            ...MOCK_SESSION_1,
+            lastBatchStatus: "idle",
+            activeBatchId: undefined,
+            candidates: MOCK_SESSION_1.candidates.map((c) =>
+              c.state === "generating"
+                ? { ...c, state: "completed" as const }
+                : c,
+            ),
           },
         }),
       });
@@ -282,6 +399,130 @@ export async function setupMockRoutes(
         success: true,
         candidate: MOCK_SESSION_1.candidates[0],
       }),
+    });
+  });
+
+  await page.route("**/api/llm/providers", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ providers: MOCK_PROVIDERS }),
+    });
+  });
+
+  await page.route("**/api/llm/test-connection", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        latencyMs: 42,
+        modelId: "claude-3-5-sonnet",
+      }),
+    });
+  });
+
+  await page.route("**/api/llm/keys", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: true,
+        providerId: "anthropic",
+        maskedKey: "sk-ant-...49f1",
+        status: "held_in_memory",
+      }),
+    });
+  });
+
+  await page.route("**/api/llm/keys/*", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ success: true }),
+    });
+  });
+
+  await page.route("**/api/styles", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ styles: MOCK_STYLES }),
+    });
+  });
+
+  await page.route("**/api/sessions/new-session-123", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        session: {
+          id: "new-session-123",
+          name: "Geometric Architecture Poster",
+          slug: "geometric-architecture-poster",
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          styleId: "tech-minimal",
+          dimensions: { width: 1920, height: 1080 },
+          candidates: [],
+          createdAt: "2026-10-24T12:00:00.000Z",
+          updatedAt: "2026-10-24T12:00:00.000Z",
+        },
+        conversation: {
+          sessionId: "new-session-123",
+          messages: [],
+          updatedAt: "2026-10-24T12:00:00.000Z",
+        },
+        promptSnapshot: "Vector illustration of brutalist pavilion",
+        generationConfig: {
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          styleId: "tech-minimal",
+          candidateCount: 4,
+          width: 1920,
+          height: 1080,
+          outputFormat: "png",
+          createdAt: "2026-10-24T12:00:00.000Z",
+        },
+        artifacts: { images: [], source: [], svg: [], assets: [] },
+      }),
+    });
+  });
+
+  await page.route("**/api/generations", async (route) => {
+    if (route.request().method() === "POST") {
+      await route.fulfill({
+        status: 202,
+        contentType: "application/json",
+        body: JSON.stringify({
+          batchId: "batch-202",
+          sessionId: "studio-brand-identity",
+          status: "running",
+          candidates: [
+            {
+              id: "cand-new-1",
+              sessionId: "studio-brand-identity",
+              index: 0,
+              state: "generating",
+              label: "Candidate 1",
+              createdAt: "2026-10-24T12:00:00.000Z",
+              updatedAt: "2026-10-24T12:00:00.000Z",
+            },
+          ],
+        }),
+      });
+    }
+  });
+
+  await page.route("**/api/generations/*/events", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      headers: {
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+      body: ": keepalive\n\n",
     });
   });
 }

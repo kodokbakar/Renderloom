@@ -8,7 +8,7 @@ if (process.env.PLAYWRIGHT_TEST) {
     }) => {
       await page.setViewportSize({ width: 1280, height: 720 });
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
 
       const grid = page.locator(".candidate-gallery-grid");
       await expect(grid).toBeVisible();
@@ -55,7 +55,7 @@ if (process.env.PLAYWRIGHT_TEST) {
     }) => {
       await page.setViewportSize({ width: 375, height: 667 });
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
 
       const grid = page.locator(".candidate-gallery-grid");
       await expect(grid).toBeVisible();
@@ -101,7 +101,7 @@ if (process.env.PLAYWRIGHT_TEST) {
     }) => {
       await page.setViewportSize({ width: 375, height: 667 });
       await setupMockRoutes(page);
-      await page.goto("/");
+      await page.goto("/#/studio");
 
       // Open preview modal
       await page.locator('.candidate-card[data-candidate-id="cand-1"]').click();
