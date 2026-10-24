@@ -32,6 +32,7 @@ export interface LLMGenerationRequest {
   baseUrl?: string;
   temperature?: number;
   maxTokens?: number;
+  signal?: AbortSignal;
 }
 
 export interface LLMGenerationResponse {

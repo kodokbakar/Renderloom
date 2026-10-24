@@ -1,3 +1,15 @@
+import type { Candidate } from "./candidate";
+
+export interface BatchSummary {
+  batchId: string;
+  status: "completed" | "partial_success" | "failed" | "cancelled";
+  totalCandidates: number;
+  successfulCandidates: number;
+  failedCandidates: number;
+  cancelledCandidates: number;
+  completedAt: string;
+}
+
 export const SESSION_SCHEMA_VERSION = 1;
 
 export interface Session {
@@ -14,6 +26,10 @@ export interface Session {
     width: number;
     height: number;
   };
+  candidates?: Candidate[];
+  activeBatchId?: string;
+  lastBatchStatus?: string;
+  lastBatchSummary?: BatchSummary;
 }
 
 export interface SessionSummary {

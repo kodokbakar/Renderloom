@@ -1,9 +1,11 @@
 import { ValidationError } from "../domain/errors";
+import { GenerationCoordinator } from "../jobs/coordinator";
 import { InMemoryKeyStore } from "../llm/keystore";
 import { ProviderRegistry } from "../llm/registry";
 import { SessionService } from "../sessions/service";
 import { StyleRegistry } from "../styles/registry";
 import { handleDimensionRoute } from "./routes/dimensions";
+import { handleJobRoute } from "./routes/jobs";
 import { handleLlmRoute } from "./routes/llm";
 import { handlePromptRoute } from "./routes/prompts";
 import { handleSessionRoute } from "./routes/sessions";
@@ -15,6 +17,7 @@ export interface ServerOptions {
   keyStore?: InMemoryKeyStore;
   providerRegistry?: ProviderRegistry;
   styleRegistry?: StyleRegistry;
+  coordinator?: GenerationCoordinator;
 }
 
 export function createServer(
@@ -47,6 +50,16 @@ export function createServer(
       ? portOrOptions.styleRegistry
       : undefined) ?? new StyleRegistry();
 
+  const coordinator =
+    (typeof portOrOptions === "object"
+      ? portOrOptions.coordinator
+      : undefined) ??
+    new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+    });
   return Bun.serve({
     port,
     async fetch(req) {
@@ -118,6 +131,16 @@ export function createServer(
       }
       if (sessionResponse) {
         return sessionResponse;
+      }
+
+      const jobResponse = await handleJobRoute(
+        req,
+        url,
+        coordinator,
+        sessionService,
+      );
+      if (jobResponse) {
+        return jobResponse;
       }
 
       return new Response("Not Found", { status: 404 });

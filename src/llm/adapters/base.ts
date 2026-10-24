@@ -21,19 +21,30 @@ export async function executeProviderFetch(
     ...fetchInit
   } = options;
 
+  let timedOut = false;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
+    timedOut = true;
     controller.abort(new Error("Request timed out"));
   }, timeoutMs);
+
+  const effectiveSignal = options.signal
+    ? AbortSignal.any([controller.signal, options.signal])
+    : controller.signal;
 
   let response: Response;
   try {
     response = await fetchFn(url, {
       ...fetchInit,
-      signal: controller.signal,
+      signal: effectiveSignal,
     });
   } catch (err: unknown) {
     clearTimeout(timeoutId);
+    if (options.signal?.aborted && !timedOut) {
+      const abortError = new Error("Request cancelled by caller");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
     throw normalizeProviderError(err, providerId);
   } finally {
     clearTimeout(timeoutId);

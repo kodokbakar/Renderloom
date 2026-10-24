@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import {
+  type BatchSummary,
+  type Candidate,
   type Conversation,
   type CreateSessionRequest,
   type FullSession,
@@ -60,6 +62,19 @@ export class SessionService {
     const { promise: ticket, resolve: release } = Promise.withResolvers<void>();
     const wait = this.creationLock;
     this.creationLock = ticket;
+    await wait;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+  // ponytail: instance-level serialized write lock for session updates to prevent concurrent read-modify-write races
+  private sessionWriteLock = Promise.resolve();
+  private async withSessionWriteLock<T>(fn: () => Promise<T>): Promise<T> {
+    const { promise: ticket, resolve: release } = Promise.withResolvers<void>();
+    const wait = this.sessionWriteLock;
+    this.sessionWriteLock = ticket;
     await wait;
     try {
       return await fn();
@@ -281,6 +296,7 @@ export class SessionService {
           modelId: session.modelId,
           styleId: session.styleId,
           dimensions: session.dimensions,
+          candidateCount: session.candidates?.length ?? 0,
         });
       } catch {
         // Corrupt session.json isolated safely without breaking the listing
@@ -393,28 +409,32 @@ export class SessionService {
     filename: string,
     content: string | Uint8Array,
   ): Promise<string> {
-    const { dir, session } = await this.resolveSessionDir(idOrSlug);
-    const artifactPath = validateArtifactPath(
-      this.baseDir,
-      session.slug,
-      type,
-      filename,
-    );
-
-    if (existsSync(artifactPath)) {
-      throw new SessionError(
-        "IMMUTABLE_ARTIFACT",
-        `Artifact '${filename}' already exists and cannot be overwritten`,
+    return this.withSessionWriteLock(async () => {
+      const { dir, session } = await this.resolveSessionDir(idOrSlug);
+      const artifactPath = validateArtifactPath(
+        this.baseDir,
+        session.slug,
+        type,
+        filename,
       );
-    }
 
-    await atomicWriteFile(artifactPath, content);
+      if (existsSync(artifactPath)) {
+        throw new SessionError(
+          "IMMUTABLE_ARTIFACT",
+          `Artifact '${filename}' already exists and cannot be overwritten`,
+        );
+      }
 
-    // Update session updatedAt timestamp
-    session.updatedAt = new Date().toISOString();
-    await atomicWriteJson(path.join(dir, "session.json"), session);
+      await atomicWriteFile(artifactPath, content);
 
-    return artifactPath;
+      // Re-read latest session.json to avoid overwriting concurrently saved candidates
+      const latestRaw = await readFile(path.join(dir, "session.json"), "utf-8");
+      const latestSession = JSON.parse(latestRaw) as Session;
+      latestSession.updatedAt = new Date().toISOString();
+      await atomicWriteJson(path.join(dir, "session.json"), latestSession);
+
+      return artifactPath;
+    });
   }
 
   async getArtifactPath(
@@ -452,5 +472,64 @@ export class SessionService {
       path.join(dir, "prompt.snapshot.txt"),
       snapshotContent,
     );
+  }
+
+  async saveCandidate(
+    idOrSlug: string,
+    candidate: Candidate,
+  ): Promise<Session> {
+    return this.withSessionWriteLock(async () => {
+      const { dir, session } = await this.resolveSessionDir(idOrSlug);
+      const candidates = session.candidates ?? [];
+      const existingIdx = candidates.findIndex((c) => c.id === candidate.id);
+
+      if (existingIdx !== -1) {
+        candidates[existingIdx] = candidate;
+      } else {
+        candidates.push(candidate);
+      }
+
+      session.candidates = candidates;
+      session.updatedAt = new Date().toISOString();
+
+      await atomicWriteJson(path.join(dir, "session.json"), session);
+      return session;
+    });
+  }
+
+  async recordBatchSummary(
+    idOrSlug: string,
+    summary: BatchSummary,
+    finalCandidates?: Candidate[],
+  ): Promise<Session> {
+    return this.withSessionWriteLock(async () => {
+      const { dir, session } = await this.resolveSessionDir(idOrSlug);
+      session.activeBatchId = summary.batchId;
+      session.lastBatchStatus = summary.status;
+      session.lastBatchSummary = summary;
+      if (finalCandidates) {
+        const candidates = session.candidates ? [...session.candidates] : [];
+        for (const candidate of finalCandidates) {
+          const existingIdx = candidates.findIndex(
+            (c) => c.id === candidate.id,
+          );
+          if (existingIdx !== -1) {
+            candidates[existingIdx] = candidate;
+          } else {
+            candidates.push(candidate);
+          }
+        }
+        session.candidates = candidates;
+      }
+      session.updatedAt = new Date().toISOString();
+
+      await atomicWriteJson(path.join(dir, "session.json"), session);
+      return session;
+    });
+  }
+
+  async getCandidates(idOrSlug: string): Promise<Candidate[]> {
+    const { session } = await this.resolveSessionDir(idOrSlug);
+    return session.candidates ?? [];
   }
 }
