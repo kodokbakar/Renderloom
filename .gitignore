@@ -15,6 +15,7 @@ build/
 # Runtime & User Outputs
 Outputs/
 *.log
+tmp-test-*/
 
 # Editor & System
 .DS_Store
