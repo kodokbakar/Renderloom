@@ -50,6 +50,16 @@ describe("Styles, Dimensions, and Prompts API", () => {
       expect(data.style.patternsToAvoid.length).toBeGreaterThan(0);
     });
 
+    test("returns full style preset for alias ID", async () => {
+      const res = await fetch(`${baseUrl}/api/styles/tech-minimal`);
+      expect(res.status).toBe(200);
+
+      const data = await res.json();
+      expect(data.style.id).toBe("tech-minimal");
+      expect(data.style.name).toBe("Tech Minimal");
+      expect(data.style.palette.background).toBe("#FFFFFF");
+    });
+
     test("returns 404 for unknown style ID", async () => {
       const res = await fetch(`${baseUrl}/api/styles/nonexistent-style-id`);
       expect(res.status).toBe(404);
@@ -162,6 +172,27 @@ describe("Styles, Dimensions, and Prompts API", () => {
       );
     });
 
+    test("composes prompt with style alias", async () => {
+      const res = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Modern clean landing illustration",
+          styleId: "modern-clean",
+          candidateCount: 1,
+          width: 1024,
+          height: 1024,
+        }),
+      });
+      expect(res.status).toBe(200);
+
+      const data = await res.json();
+      expect(data.composed.metadata.styleId).toBe("modern-clean");
+      expect(data.composed.systemPrompt).toContain(
+        "### Style Preset: Modern Clean",
+      );
+    });
+
     test("returns 404 when composing with unknown style ID", async () => {
       const res = await fetch(`${baseUrl}/api/prompts/compose`, {
         method: "POST",
@@ -218,6 +249,28 @@ describe("Styles, Dimensions, and Prompts API", () => {
           outputFormat: "png",
           providerId: "openai",
           modelId: "gpt-4o",
+        }),
+      });
+      expect(res.status).toBe(200);
+
+      const data = await res.json();
+      expect(data.valid).toBe(true);
+    });
+
+    test("accepts request with style alias", async () => {
+      const res = await fetch(`${baseUrl}/api/validate-generation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "sess-alias",
+          prompt: "Tech poster",
+          styleId: "tech-minimal",
+          candidateCount: 1,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
         }),
       });
       expect(res.status).toBe(200);

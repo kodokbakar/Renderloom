@@ -55,6 +55,32 @@ describe("Style Registry & Built-in Presets", () => {
     expect(minimal.palette.background).toBe("#FFFFFF");
   });
 
+  test("resolves aliases 'tech-minimal' and 'modern-clean' with overridden id and name", async () => {
+    const techMinimal = await registry.getPreset("tech-minimal");
+    expect(techMinimal.id).toBe("tech-minimal");
+    expect(techMinimal.name).toBe("Tech Minimal");
+    expect(techMinimal.palette.background).toBe("#FFFFFF");
+
+    const modernClean = await registry.getPreset("modern-clean");
+    expect(modernClean.id).toBe("modern-clean");
+    expect(modernClean.name).toBe("Modern Clean");
+    expect(modernClean.palette.background).toBe("#FFFFFF");
+  });
+
+  test("hasPreset correctly checks canonical presets and aliases", async () => {
+    expect(await registry.hasPreset("minimal")).toBe(true);
+    expect(await registry.hasPreset("tech-minimal")).toBe(true);
+    expect(await registry.hasPreset("modern-clean")).toBe(true);
+    expect(await registry.hasPreset("nonexistent-style")).toBe(false);
+  });
+
+  test("formats style instructions for aliases using alias name", async () => {
+    const instructions = await registry.formatStyleInstructions("tech-minimal");
+    expect(instructions).toContain("### Style Preset: Tech Minimal");
+    expect(instructions).toContain("Design Principles");
+    expect(instructions).toContain("Palette");
+  });
+
   test("throws ValidationError on unknown preset ID", async () => {
     expect(registry.getPreset("cyberpunk-nonexistent")).rejects.toThrow(
       ValidationError,
