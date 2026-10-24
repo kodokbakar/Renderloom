@@ -20,3 +20,6 @@ tmp-test-*/
 # Editor & System
 .DS_Store
 *.swp
+
+# Agents
+.agents/
