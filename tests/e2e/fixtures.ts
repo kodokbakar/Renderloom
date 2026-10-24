@@ -206,6 +206,20 @@ export const MOCK_PROVIDERS = [
     ],
     status: { configured: false },
   },
+  {
+    id: "custom",
+    name: "Custom (OpenAI-Compatible)",
+    supportsCustomBaseUrl: true,
+    defaultBaseUrl: "http://localhost:11434/v1",
+    defaultModelId: "llama3",
+    models: [
+      { id: "llama3", name: "Llama 3", isDefault: true },
+      { id: "mistral", name: "Mistral" },
+      { id: "deepseek-chat", name: "DeepSeek Chat" },
+      { id: "qwen2.5-coder", name: "Qwen 2.5 Coder" },
+    ],
+    status: { configured: false },
+  },
 ];
 
 export const MOCK_STYLES = [
@@ -251,9 +265,18 @@ export async function setupMockRoutes(
   page: Page,
   options?: { emptySession?: boolean; idleSession?: boolean },
 ) {
+  let lastCreatedSession: {
+    name?: string;
+    providerId?: string;
+    modelId?: string;
+    styleId?: string;
+    width?: number;
+    height?: number;
+  } | null = null;
   await page.route("**/api/sessions", async (route) => {
     if (route.request().method() === "POST") {
       const body = JSON.parse(route.request().postData() || "{}");
+      lastCreatedSession = body;
       await route.fulfill({
         status: 201,
         contentType: "application/json",
@@ -411,25 +434,46 @@ export async function setupMockRoutes(
   });
 
   await page.route("**/api/llm/test-connection", async (route) => {
+    let postData: { modelId?: string } | undefined;
+    try {
+      postData = route.request().postDataJSON();
+    } catch {
+      postData = undefined;
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         success: true,
         latencyMs: 42,
-        modelId: "claude-3-5-sonnet",
+        modelId: postData?.modelId || "claude-3-5-sonnet",
       }),
     });
   });
 
   await page.route("**/api/llm/keys", async (route) => {
+    let postData:
+      | { providerId?: string; apiKey?: string; baseUrl?: string }
+      | undefined;
+    try {
+      postData = route.request().postDataJSON();
+    } catch {
+      postData = undefined;
+    }
+    const providerId = postData?.providerId || "anthropic";
+    const apiKey = postData?.apiKey;
+    const maskedKey = apiKey
+      ? `${apiKey.slice(0, 3)}...${apiKey.slice(-4)}`
+      : "No API key required";
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         success: true,
-        providerId: "anthropic",
-        maskedKey: "sk-ant-...49f1",
+        providerId,
+        maskedKey,
+        baseUrl: postData?.baseUrl,
         status: "held_in_memory",
       }),
     });
@@ -457,13 +501,15 @@ export async function setupMockRoutes(
       contentType: "application/json",
       body: JSON.stringify({
         session: {
-          id: "new-session-123",
-          name: "Geometric Architecture Poster",
+          name: lastCreatedSession?.name || "Geometric Architecture Poster",
           slug: "geometric-architecture-poster",
-          providerId: "anthropic",
-          modelId: "claude-3-5-sonnet",
-          styleId: "tech-minimal",
-          dimensions: { width: 1920, height: 1080 },
+          providerId: lastCreatedSession?.providerId || "anthropic",
+          modelId: lastCreatedSession?.modelId || "claude-3-5-sonnet",
+          styleId: lastCreatedSession?.styleId || "tech-minimal",
+          dimensions: {
+            width: lastCreatedSession?.width || 1920,
+            height: lastCreatedSession?.height || 1080,
+          },
           candidates: [],
           createdAt: "2026-10-24T12:00:00.000Z",
           updatedAt: "2026-10-24T12:00:00.000Z",
@@ -475,12 +521,12 @@ export async function setupMockRoutes(
         },
         promptSnapshot: "Vector illustration of brutalist pavilion",
         generationConfig: {
-          providerId: "anthropic",
-          modelId: "claude-3-5-sonnet",
-          styleId: "tech-minimal",
+          providerId: lastCreatedSession?.providerId || "anthropic",
+          modelId: lastCreatedSession?.modelId || "claude-3-5-sonnet",
+          styleId: lastCreatedSession?.styleId || "tech-minimal",
           candidateCount: 4,
-          width: 1920,
-          height: 1080,
+          width: lastCreatedSession?.width || 1920,
+          height: lastCreatedSession?.height || 1080,
           outputFormat: "png",
           createdAt: "2026-10-24T12:00:00.000Z",
         },
