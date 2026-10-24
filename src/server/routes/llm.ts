@@ -55,12 +55,14 @@ export async function handleLlmRoute(
         validatedBaseUrl = validateBaseUrl(valid.baseUrl, true);
       }
 
-      keyStore.setKey(valid.providerId, valid.apiKey, validatedBaseUrl);
+      keyStore.setKey(valid.providerId, valid.apiKey ?? "", validatedBaseUrl);
 
       return Response.json({
         success: true,
         providerId: valid.providerId,
-        maskedKey: maskApiKey(valid.apiKey),
+        maskedKey: valid.apiKey?.trim()
+          ? maskApiKey(valid.apiKey)
+          : "No API key required",
         baseUrl: validatedBaseUrl,
         status: "held_in_memory",
       });
@@ -90,9 +92,9 @@ export async function handleLlmRoute(
       }
 
       const stored = keyStore.getKey(valid.providerId);
-      const effectiveKey = valid.apiKey?.trim() || stored?.apiKey;
+      const effectiveKey = valid.apiKey?.trim() || stored?.apiKey || "";
 
-      if (!effectiveKey) {
+      if (!effectiveKey && valid.providerId.toLowerCase() !== "custom") {
         throw new ValidationError(
           `No API key provided or configured for provider '${valid.providerId}'`,
         );

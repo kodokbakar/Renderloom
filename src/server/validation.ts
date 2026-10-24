@@ -83,11 +83,22 @@ export const ArtifactParamsSchema = z.object({
   filename: z.string().min(1),
 });
 
-export const SetKeyRequestSchema = z.object({
-  providerId: z.string().min(1, "providerId is required"),
-  apiKey: z.string().min(1, "apiKey is required"),
-  baseUrl: z.string().optional(),
-});
+export const SetKeyRequestSchema = z
+  .object({
+    providerId: z.string().min(1, "providerId is required"),
+    apiKey: z.string().optional(),
+    baseUrl: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const isCustom = data.providerId.toLowerCase() === "custom";
+    if (!isCustom && (!data.apiKey || data.apiKey.trim().length === 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["apiKey"],
+        message: "apiKey is required",
+      });
+    }
+  });
 export type SetKeyRequest = z.infer<typeof SetKeyRequestSchema>;
 
 export const TestConnectionRequestSchema = z.object({

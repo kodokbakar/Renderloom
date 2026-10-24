@@ -17,8 +17,8 @@ describe("LLM API Routes", () => {
     // Mock fetch for adapters inside registry
     const mockFetch: FetchFunction = async (url) => {
       const urlStr = String(url);
-      if (urlStr.includes("openai.com/v1/models")) {
-        return new Response(JSON.stringify({ data: [{ id: "gpt-4o" }] }), {
+      if (urlStr.includes("/models")) {
+        return new Response(JSON.stringify({ data: [{ id: "test-model" }] }), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
@@ -57,6 +57,7 @@ describe("LLM API Routes", () => {
       providers: Array<{
         id: string;
         name: string;
+        supportsCustomBaseUrl?: boolean;
         status: { configured: boolean };
       }>;
     };
@@ -65,8 +66,12 @@ describe("LLM API Routes", () => {
     const openai = json.providers.find((p) => p.id === "openai");
     expect(openai).toBeDefined();
     expect(openai?.status.configured).toBe(false);
-  });
 
+    const custom = json.providers.find((p) => p.id === "custom");
+    expect(custom).toBeDefined();
+    expect(custom?.status.configured).toBe(false);
+    expect(custom?.supportsCustomBaseUrl).toBe(true);
+  });
   test("POST /api/llm/keys sets transient key and returns masked indicator", async () => {
     const rawKey = "sk-proj-super-secret-key-1234567890";
     const res = await fetch(`${baseUrl}/api/llm/keys`, {
@@ -102,6 +107,44 @@ describe("LLM API Routes", () => {
     expect(openaiStatus?.maskedKey).toBe("sk-...7890");
     expect(JSON.stringify(statusJson)).not.toContain(rawKey);
   });
+  test("POST /api/llm/keys allows empty/missing apiKey for custom provider", async () => {
+    const res = await fetch(`${baseUrl}/api/llm/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        baseUrl: "http://localhost:11434/v1",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      success: boolean;
+      maskedKey: string;
+      baseUrl: string;
+    };
+    expect(json.success).toBe(true);
+    expect(json.maskedKey).toBe("No API key required");
+    expect(json.baseUrl).toBe("http://localhost:11434/v1");
+    expect(keyStore.hasKey("custom")).toBe(true);
+  });
+
+  test("POST /api/llm/keys blocks cloud metadata SSRF on custom baseUrl", async () => {
+    const res = await fetch(`${baseUrl}/api/llm/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        baseUrl: "http://169.254.169.254/v1",
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    const json = (await res.json()) as { error: string };
+    expect(json.error).toContain(
+      "Access to cloud metadata endpoints is forbidden",
+    );
+  });
 
   test("POST /api/llm/keys rejects unsupported custom base URL for Anthropic", async () => {
     const res = await fetch(`${baseUrl}/api/llm/keys`, {
@@ -135,6 +178,21 @@ describe("LLM API Routes", () => {
     const json = (await res.json()) as { success: boolean; modelId: string };
     expect(json.success).toBe(true);
     expect(json.modelId).toBe("gpt-4o");
+  });
+  test("POST /api/llm/test-connection succeeds with empty apiKey for custom provider", async () => {
+    const res = await fetch(`${baseUrl}/api/llm/test-connection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        modelId: "llama3",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { success: boolean; modelId: string };
+    expect(json.success).toBe(true);
+    expect(json.modelId).toBe("llama3");
   });
 
   test("DELETE /api/llm/keys/:providerId purges key from memory", async () => {
@@ -207,5 +265,36 @@ describe("LLM API Routes", () => {
     expect(res.status).toBe(400);
     const json = (await res.json()) as { code: string };
     expect(json.code).toBe("VALIDATION_ERROR");
+  });
+
+  test("POST /api/llm/keys and test-connection support custom ports and arbitrary model IDs", async () => {
+    const keyRes = await fetch(`${baseUrl}/api/llm/keys`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        baseUrl: "http://127.0.0.1:8080/v1",
+      }),
+    });
+    expect(keyRes.status).toBe(200);
+    const keyJson = (await keyRes.json()) as { baseUrl: string };
+    expect(keyJson.baseUrl).toBe("http://127.0.0.1:8080/v1");
+
+    const testRes = await fetch(`${baseUrl}/api/llm/test-connection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        modelId: "mistral-nemo:12b",
+        baseUrl: "http://127.0.0.1:8080/v1",
+      }),
+    });
+    expect(testRes.status).toBe(200);
+    const testJson = (await testRes.json()) as {
+      success: boolean;
+      modelId: string;
+    };
+    expect(testJson.success).toBe(true);
+    expect(testJson.modelId).toBe("mistral-nemo:12b");
   });
 });

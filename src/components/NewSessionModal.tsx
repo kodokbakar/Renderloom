@@ -79,6 +79,18 @@ const DEFAULT_PROVIDERS: ProviderMeta[] = [
       { id: "gpt-4o-mini", name: "GPT-4o Mini" },
     ],
   },
+  {
+    id: "custom",
+    name: "Custom (OpenAI-Compatible)",
+    supportsCustomBaseUrl: true,
+    defaultModelId: "llama3",
+    models: [
+      { id: "llama3", name: "Llama 3", isDefault: true },
+      { id: "mistral", name: "Mistral" },
+      { id: "deepseek-chat", name: "DeepSeek Chat" },
+      { id: "qwen2.5-coder", name: "Qwen 2.5 Coder" },
+    ],
+  },
 ];
 
 export function NewSessionModal({
@@ -266,19 +278,41 @@ export function NewSessionModal({
               <label htmlFor="new-session-model" className="field-label">
                 Model
               </label>
-              <select
-                id="new-session-model"
-                className="modal-select"
-                data-testid="new-session-model-select"
-                value={modelId}
-                onChange={(e) => setModelId(e.target.value)}
-              >
-                {availableModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
+              {providerId === "custom" ? (
+                <>
+                  <input
+                    id="new-session-model"
+                    type="text"
+                    className="modal-text-input"
+                    data-testid="new-session-custom-model-input"
+                    placeholder="e.g. llama3, mistral, or custom model ID"
+                    value={modelId}
+                    onChange={(e) => setModelId(e.target.value)}
+                    list="new-session-custom-models"
+                  />
+                  <datalist id="new-session-custom-models">
+                    {availableModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </datalist>
+                </>
+              ) : (
+                <select
+                  id="new-session-model"
+                  className="modal-select"
+                  data-testid="new-session-model-select"
+                  value={modelId}
+                  onChange={(e) => setModelId(e.target.value)}
+                >
+                  {availableModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 

@@ -110,9 +110,9 @@ export class GenerationCoordinator extends EventEmitter {
     const height = options.height ?? session.dimensions?.height ?? 1024;
 
     const storedKey = this.keyStore.getKey(providerId);
-    const apiKey = options.apiKey ?? storedKey?.apiKey;
+    const apiKey = options.apiKey ?? storedKey?.apiKey ?? "";
     const baseUrl = options.baseUrl ?? storedKey?.baseUrl;
-    if (!apiKey) {
+    if (!apiKey && providerId.toLowerCase() !== "custom") {
       throw new ValidationError(`Missing API key for provider '${providerId}'`);
     }
 
@@ -239,7 +239,7 @@ export class GenerationCoordinator extends EventEmitter {
             providerAdapter,
             modelId,
             apiKey,
-            baseUrl: options.baseUrl,
+            baseUrl,
             width,
             height,
             sessionService: this.sessionService,
@@ -437,9 +437,9 @@ export class GenerationCoordinator extends EventEmitter {
     const height = batch.options.height ?? session.dimensions?.height ?? 1024;
 
     const storedKey = this.keyStore.getKey(providerId);
-    const apiKey = batch.options.apiKey ?? storedKey?.apiKey;
+    const apiKey = batch.options.apiKey ?? storedKey?.apiKey ?? "";
     const baseUrl = batch.options.baseUrl ?? storedKey?.baseUrl;
-    if (!apiKey) {
+    if (!apiKey && providerId.toLowerCase() !== "custom") {
       throw new ValidationError(`Missing API key for provider '${providerId}'`);
     }
 
@@ -486,7 +486,7 @@ export class GenerationCoordinator extends EventEmitter {
         providerAdapter,
         modelId,
         apiKey,
-        baseUrl: batch.options.baseUrl,
+        baseUrl,
         width,
         height,
         sessionService: this.sessionService,
@@ -637,9 +637,9 @@ export class GenerationCoordinator extends EventEmitter {
     const providerId = options.providerId ?? session.providerId;
     const modelId = options.modelId ?? session.modelId;
     const storedKey = this.keyStore.getKey(providerId);
-    const apiKey = options.apiKey ?? storedKey?.apiKey;
+    const apiKey = options.apiKey ?? storedKey?.apiKey ?? "";
     const baseUrl = options.baseUrl ?? storedKey?.baseUrl;
-    if (!apiKey) {
+    if (!apiKey && providerId.toLowerCase() !== "custom") {
       throw new ValidationError(`Missing API key for provider '${providerId}'`);
     }
     const providerAdapter = this.providerRegistry.get(providerId);

@@ -46,6 +46,18 @@ const DEFAULT_PROVIDERS: ProviderMeta[] = [
       { id: "gpt-4o-mini", name: "GPT-4o Mini" },
     ],
   },
+  {
+    id: "custom",
+    name: "Custom (OpenAI-Compatible)",
+    supportsCustomBaseUrl: true,
+    defaultModelId: "llama3",
+    models: [
+      { id: "llama3", name: "Llama 3", isDefault: true },
+      { id: "mistral", name: "Mistral" },
+      { id: "deepseek-chat", name: "DeepSeek Chat" },
+      { id: "qwen2.5-coder", name: "Qwen 2.5 Coder" },
+    ],
+  },
 ];
 
 const DEFAULT_STYLES: StylePresetSummary[] = [
@@ -224,20 +236,43 @@ export function StudioControls({
           <label htmlFor="studio-model-select" className="control-label">
             Model
           </label>
-          <select
-            id="studio-model-select"
-            className="control-select"
-            data-testid="studio-model-select"
-            value={modelId}
-            onChange={(e) => setModelId(e.target.value)}
-            disabled={isGenerating}
-          >
-            {availableModels.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+          {providerId === "custom" ? (
+            <>
+              <input
+                id="studio-model-select"
+                type="text"
+                className="control-select"
+                data-testid="studio-custom-model-input"
+                value={modelId}
+                onChange={(e) => setModelId(e.target.value)}
+                disabled={isGenerating}
+                list="studio-custom-models"
+                placeholder="e.g. llama3"
+              />
+              <datalist id="studio-custom-models">
+                {availableModels.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </datalist>
+            </>
+          ) : (
+            <select
+              id="studio-model-select"
+              className="control-select"
+              data-testid="studio-model-select"
+              value={modelId}
+              onChange={(e) => setModelId(e.target.value)}
+              disabled={isGenerating}
+            >
+              {availableModels.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Style Preset with Palette Swatch Preview */}

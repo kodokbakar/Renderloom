@@ -1,4 +1,4 @@
-export type ProviderId = "openai" | "anthropic" | (string & {});
+export type ProviderId = "openai" | "anthropic" | "custom" | (string & {});
 
 export interface ProviderModel {
   id: string;

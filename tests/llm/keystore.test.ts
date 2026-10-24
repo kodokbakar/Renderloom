@@ -76,6 +76,35 @@ describe("InMemoryKeyStore", () => {
     expect(() => store.setKey("openai", "")).toThrow(ValidationError);
     expect(() => store.setKey("openai", "   ")).toThrow(ValidationError);
   });
+  test("allows optional/empty apiKey for custom provider and reports configured", () => {
+    const store = new InMemoryKeyStore();
+    store.setKey("custom", "", "http://localhost:11434/v1");
+
+    expect(store.hasKey("custom")).toBe(true);
+    const retrieved = store.getKey("custom");
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.apiKey).toBe("");
+    expect(retrieved?.baseUrl).toBe("http://localhost:11434/v1");
+
+    const status = store.getStatus().custom;
+    expect(status?.configured).toBe(true);
+    expect(status?.maskedKey).toBe("No API key required");
+    expect(status?.baseUrl).toBe("http://localhost:11434/v1");
+  });
+
+  test("masks apiKey when custom provider is configured with non-empty key", () => {
+    const store = new InMemoryKeyStore();
+    store.setKey(
+      "custom",
+      "sk-custom-secret-key-123",
+      "https://api.deepseek.com/v1",
+    );
+
+    const status = store.getStatus().custom;
+    expect(status?.configured).toBe(true);
+    expect(status?.maskedKey).toContain("sk-");
+    expect(status?.baseUrl).toBe("https://api.deepseek.com/v1");
+  });
 
   test("handles concurrent updates and status consistency across providers", async () => {
     const store = new InMemoryKeyStore();
