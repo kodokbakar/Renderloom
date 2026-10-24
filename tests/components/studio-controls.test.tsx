@@ -51,4 +51,23 @@ describe("StudioControls", () => {
     expect(html).toContain("Generating...");
     expect(html).toContain("disabled");
   });
+  test("renders custom model text input when session uses Custom provider", () => {
+    const customSession: Session = {
+      ...mockSession,
+      providerId: "custom",
+      modelId: "llama3",
+    };
+
+    const html = renderToStaticMarkup(
+      <StudioControls
+        session={customSession}
+        isGenerating={false}
+        onGenerate={async () => {}}
+      />,
+    );
+
+    expect(html).toContain('data-testid="studio-custom-model-input"');
+    expect(html).toContain('list="studio-custom-models"');
+    expect(html).not.toContain('data-testid="studio-model-select"');
+  });
 });

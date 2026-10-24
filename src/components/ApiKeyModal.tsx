@@ -129,12 +129,17 @@ export function ApiKeyModal({
   };
 
   const handleSaveKey = async (provider: EnrichedProviderMeta) => {
+    const isCustom = provider.id === "custom";
     const enteredKey = keyInputs[provider.id]?.trim();
-    if (!enteredKey) {
+    const enteredBaseUrl = baseUrlInputs[provider.id]?.trim();
+    if (!isCustom && !enteredKey) {
       setFeedback(`Please enter an API key for ${provider.name}`);
       return;
     }
-
+    if (isCustom && !enteredKey && !enteredBaseUrl) {
+      setFeedback(`Please enter an API key or Base URL for ${provider.name}`);
+      return;
+    }
     setIsSaving((prev) => ({ ...prev, [provider.id]: true }));
     setFeedback(null);
 
@@ -145,7 +150,7 @@ export function ApiKeyModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           providerId: provider.id,
-          apiKey: enteredKey,
+          apiKey: enteredKey || "",
           baseUrl: enteredBaseUrl || undefined,
         }),
       });
@@ -158,7 +163,11 @@ export function ApiKeyModal({
           return next;
         });
         await fetchProviders();
-        setFeedback(`Saved API key for ${provider.name}`);
+        setFeedback(
+          isCustom && !enteredKey
+            ? `Saved configuration for ${provider.name}`
+            : `Saved API key for ${provider.name}`,
+        );
       } else {
         const errData = (await res.json()) as { error?: string };
         setFeedback(errData.error || "Failed to save key");
@@ -285,11 +294,14 @@ export function ApiKeyModal({
                         className="modal-text-input"
                         data-testid={`key-input-${p.id}`}
                         placeholder={
-                          isConfigured
-                            ? "Enter new key to replace..."
-                            : "sk-..."
+                          p.id === "custom"
+                            ? isConfigured
+                              ? "Optional (enter new key to replace)..."
+                              : "Optional (leave empty for local Ollama/vLLM)"
+                            : isConfigured
+                              ? "Enter new key to replace..."
+                              : "sk-..."
                         }
-                        value={keyInputs[p.id] || ""}
                         onChange={(e) =>
                           setKeyInputs((prev) => ({
                             ...prev,
@@ -314,7 +326,9 @@ export function ApiKeyModal({
                           className="modal-text-input"
                           data-testid={`baseurl-input-${p.id}`}
                           placeholder={
-                            p.defaultBaseUrl || "https://api.example.com/v1"
+                            p.id === "custom"
+                              ? "http://localhost:11434/v1"
+                              : p.defaultBaseUrl || "https://api.example.com/v1"
                           }
                           value={baseUrlInputs[p.id] || ""}
                           onChange={(e) =>
@@ -354,10 +368,20 @@ export function ApiKeyModal({
                       type="button"
                       className="btn-primary"
                       data-testid={`save-btn-${p.id}`}
-                      disabled={isSaving[p.id] || !keyInputs[p.id]?.trim()}
+                      disabled={
+                        isSaving[p.id] ||
+                        (p.id === "custom"
+                          ? !keyInputs[p.id]?.trim() &&
+                            !baseUrlInputs[p.id]?.trim()
+                          : !keyInputs[p.id]?.trim())
+                      }
                       onClick={() => handleSaveKey(p)}
                     >
-                      {isSaving[p.id] ? "Saving..." : "Save Key"}
+                      {isSaving[p.id]
+                        ? "Saving..."
+                        : p.id === "custom"
+                          ? "Save"
+                          : "Save Key"}
                     </button>
 
                     {isConfigured && (

@@ -77,4 +77,65 @@ describe("ApiKeyModal", () => {
     expect(html).toContain('data-testid="api-key-close-btn"');
     expect(html).toContain('data-testid="api-key-modal-done"');
   });
+  test("renders custom provider card with optional API key placeholder and custom base URL", () => {
+    const customProviders: EnrichedProviderMeta[] = [
+      {
+        id: "custom",
+        name: "Custom (OpenAI-Compatible)",
+        supportsCustomBaseUrl: true,
+        defaultBaseUrl: "http://localhost:11434/v1",
+        defaultModelId: "llama3",
+        models: [{ id: "llama3", name: "Llama 3" }],
+        status: {
+          configured: false,
+        },
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <ApiKeyModal
+        isOpen={true}
+        onClose={() => {}}
+        initialProviders={customProviders}
+      />,
+    );
+
+    expect(html).toContain("Custom (OpenAI-Compatible)");
+    expect(html).toContain('data-testid="provider-card-custom"');
+    expect(html).toContain('data-testid="key-input-custom"');
+    expect(html).toContain("Optional (leave empty for local Ollama/vLLM)");
+    expect(html).toContain('data-testid="baseurl-input-custom"');
+    expect(html).toContain("http://localhost:11434/v1");
+    expect(html).toContain('data-testid="test-btn-custom"');
+    expect(html).toContain('data-testid="save-btn-custom"');
+  });
+
+  test("renders configured custom provider with active badge and remove button", () => {
+    const customConfigured: EnrichedProviderMeta[] = [
+      {
+        id: "custom",
+        name: "Custom (OpenAI-Compatible)",
+        supportsCustomBaseUrl: true,
+        defaultBaseUrl: "http://localhost:11434/v1",
+        defaultModelId: "llama3",
+        models: [{ id: "llama3", name: "Llama 3" }],
+        status: {
+          configured: true,
+          maskedKey: "No API key required",
+          baseUrl: "http://localhost:11434/v1",
+        },
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <ApiKeyModal
+        isOpen={true}
+        onClose={() => {}}
+        initialProviders={customConfigured}
+      />,
+    );
+
+    expect(html).toContain("Active (No API key required)");
+    expect(html).toContain('data-testid="remove-btn-custom"');
+  });
 });
