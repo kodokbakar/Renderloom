@@ -561,4 +561,59 @@ describe("GenerationCoordinator", () => {
     expect(coordinator.cancelBatch(batch.id)).toBe(false);
     expect(coordinator.cancelCandidate(batch.id, "design-001")).toBe(false);
   });
+  test("allows custom provider execution without apiKey", async () => {
+    let capturedReq: LLMGenerationRequest | undefined;
+    class CustomMockAdapter implements ProviderAdapter {
+      readonly id = "custom";
+      readonly meta: ProviderMeta = {
+        id: "custom",
+        name: "Custom",
+        supportsCustomBaseUrl: true,
+        defaultModelId: "llama3",
+        models: [{ id: "llama3", name: "Llama 3" }],
+      };
+      async testConnection() {
+        return { success: true, latencyMs: 1, modelId: "llama3" };
+      }
+      async generate(req: LLMGenerationRequest) {
+        capturedReq = req;
+        return {
+          rawText: JSON.stringify({
+            label: "Custom Design",
+            rationale: "Testing custom provider",
+            jsx: `<div style={{ width: 200, height: 100, color: '#fff' }}>Custom Design</div>`,
+          }),
+          modelId: "llama3",
+          durationMs: 5,
+        };
+      }
+    }
+
+    const customSession = await sessionService.createSession({
+      name: "Custom Session",
+      providerId: "custom",
+      modelId: "llama3",
+      styleId: "minimal",
+      width: 200,
+      height: 100,
+    });
+
+    providerRegistry.register(new CustomMockAdapter());
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      keyStore,
+      providerRegistry,
+      styleRegistry,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId: customSession.id,
+      prompt: "Test custom prompt",
+      candidateCount: 1,
+    });
+
+    const finished = await batch.completionPromise;
+    expect(finished.status).toBe("completed");
+    expect(capturedReq?.apiKey).toBe("");
+  });
 });
