@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, isAbsolute, normalize, resolve } from "node:path";
+import { MAX_ASSET_BYTES } from "../domain/dimensions";
 import { RenderError } from "../domain/errors";
 
 const DATA_IMAGE_PREFIX = "data:image/";
@@ -65,6 +66,21 @@ export function validateAssetSource(src: string, baseDir?: string): string {
   }
 
   if (isDataImageUrl(trimmed)) {
+    const commaIndex = trimmed.indexOf(",");
+    if (commaIndex !== -1) {
+      const meta = trimmed.slice(0, commaIndex);
+      const payload = trimmed.slice(commaIndex + 1);
+      const byteLength = meta.includes(";base64")
+        ? Buffer.from(payload, "base64").byteLength
+        : Buffer.byteLength(decodeURIComponent(payload), "utf8");
+      if (byteLength > MAX_ASSET_BYTES) {
+        throw new RenderError(
+          "UNTRUSTED_REMOTE_ASSET",
+          `Data URI asset exceeds maximum allowed size of ${MAX_ASSET_BYTES} bytes (${byteLength} bytes)`,
+          { src: trimmed, byteLength, maxBytes: MAX_ASSET_BYTES },
+        );
+      }
+    }
     return trimmed;
   }
 
@@ -148,6 +164,18 @@ export async function resolveAssetToDataUri(
 
   try {
     const fileBytes = await readFile(filePath);
+    if (fileBytes.byteLength > MAX_ASSET_BYTES) {
+      throw new RenderError(
+        "UNTRUSTED_REMOTE_ASSET",
+        `Asset file exceeds maximum allowed size of ${MAX_ASSET_BYTES} bytes (${fileBytes.byteLength} bytes)`,
+        {
+          src,
+          filePath,
+          byteLength: fileBytes.byteLength,
+          maxBytes: MAX_ASSET_BYTES,
+        },
+      );
+    }
     const ext = extname(filePath).toLowerCase();
     const mime = MIME_BY_EXT[ext];
     if (!mime) {

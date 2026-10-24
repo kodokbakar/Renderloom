@@ -426,22 +426,22 @@ All phases use checklists. A phase is complete only when its tasks and acceptanc
 
 **Goal:** Test failure paths, enforce resource limits, and reduce risk before declaring the MVP ready.
 
-- [ ] Add unit tests for request schemas, style loading, prompt composition, file naming, path containment, metadata serialization, and secret redaction.
-- [ ] Add renderer tests for approved JSX elements, supported styles, font loading, images, SVG generation, PNG generation, and dimension checks.
-- [ ] Add malicious-source tests for imports, `eval`, `Function`, dynamic imports, arbitrary property access, event handlers, script tags, JSX spreads, dangerous URL attributes, filesystem/network references, and oversized ASTs.
-- [ ] Add tests that generated JSX is parsed and interpreted as data and is never evaluated as general JavaScript.
-- [ ] Add integration tests with a fake LLM provider; normal development/test runs must not require paid API usage.
-- [ ] Add a live-provider smoke test that runs only when explicitly configured by the developer.
-- [ ] Test one success and one failure in the same batch to prove partial success is preserved.
-- [ ] Test retry, cancellation, provider rate-limit responses, timeouts, malformed output, and renderer errors.
-- [ ] Test restart/reopen after completed, failed, and interrupted generation jobs.
-- [ ] Test disk-full or write-permission failures and ensure existing artifacts remain intact.
-- [ ] Add limits for prompt text length, model output length, candidate count, dimensions, pixel count, asset bytes, SVG bytes, and render duration.
-- [ ] Do not fetch arbitrary remote URLs found in generated JSX. If remote asset import is introduced later, require explicit user action, validate the URL and content type, cap response size, prevent local-network access, and define timeout behavior.
-- [ ] Use structured logging for event type, job ID, candidate ID, stage, and sanitized error code.
-- [ ] Never log API keys, authorization headers, raw credential-bearing payloads, or unfiltered provider error bodies.
-- [ ] Add dependency/license review for shipped fonts and runtime packages.
-- [ ] Run formatting, lint, type checking, test suite, and production build as release gates.
+- [x] Add unit tests for request schemas, style loading, prompt composition, file naming, path containment, metadata serialization, and secret redaction.
+- [x] Add renderer tests for approved JSX elements, supported styles, font loading, images, SVG generation, PNG generation, and dimension checks.
+- [x] Add malicious-source tests for imports, `eval`, `Function`, dynamic imports, arbitrary property access, event handlers, script tags, JSX spreads, dangerous URL attributes, filesystem/network references, and oversized ASTs.
+- [x] Add tests that generated JSX is parsed and interpreted as data and is never evaluated as general JavaScript.
+- [x] Add integration tests with a fake LLM provider; normal development/test runs must not require paid API usage.
+- [x] Add a live-provider smoke test that runs only when explicitly configured by the developer.
+- [x] Test one success and one failure in the same batch to prove partial success is preserved.
+- [x] Test retry, cancellation, provider rate-limit responses, timeouts, malformed output, and renderer errors.
+- [x] Test restart/reopen after completed, failed, and interrupted generation jobs.
+- [x] Test disk-full or write-permission failures and ensure existing artifacts remain intact.
+- [x] Add limits for prompt text length, model output length, candidate count, dimensions, pixel count, asset bytes, SVG bytes, and render duration.
+- [x] Do not fetch arbitrary remote URLs found in generated JSX. If remote asset import is introduced later, require explicit user action, validate the URL and content type, cap response size, prevent local-network access, and define timeout behavior.
+- [x] Use structured logging for event type, job ID, candidate ID, stage, and sanitized error code.
+- [x] Never log API keys, authorization headers, raw credential-bearing payloads, or unfiltered provider error bodies.
+- [x] Add dependency/license review for shipped fonts and runtime packages.
+- [x] Run formatting, lint, type checking, test suite, and production build as release gates.
 
 **Acceptance criteria**
 

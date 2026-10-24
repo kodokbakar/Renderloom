@@ -1,4 +1,5 @@
 import ts from "typescript";
+import { MAX_AST_DEPTH, MAX_AST_NODES } from "../domain/dimensions";
 import { RenderError } from "../domain/errors";
 import { validateAssetSource, validateCssUrls } from "./assets";
 import { ALLOWED_ELEMENTS, type AllowedElement } from "./types";
@@ -68,6 +69,29 @@ function findDangerousTag(
     null
   );
 }
+function checkAstLimits(node: ts.Node, currentDepth = 1): number {
+  if (currentDepth > MAX_AST_DEPTH) {
+    throw new RenderError(
+      "UNSUPPORTED_SYNTAX",
+      `AST depth exceeds maximum allowed depth of ${MAX_AST_DEPTH}`,
+      { depth: currentDepth, maxDepth: MAX_AST_DEPTH },
+    );
+  }
+
+  let count = 1;
+  ts.forEachChild(node, (child) => {
+    count += checkAstLimits(child, currentDepth + 1);
+    if (count > MAX_AST_NODES) {
+      throw new RenderError(
+        "UNSUPPORTED_SYNTAX",
+        `AST node count exceeds maximum allowed limit of ${MAX_AST_NODES} nodes`,
+        { nodeCount: count, maxNodes: MAX_AST_NODES },
+      );
+    }
+  });
+
+  return count;
+}
 
 function validateStyleObject(
   objectLiteral: ts.ObjectLiteralExpression,
@@ -87,6 +111,19 @@ function validateStyleObject(
         "UNSUPPORTED_SYNTAX",
         `Unsupported property type in style object: ${property.getText(sourceFile)}`,
         { code: property.getText(sourceFile) },
+      );
+    }
+    const rawPropName = property.name.getText(sourceFile).trim();
+    const cleanPropName = rawPropName.replace(/^["']|["']$/g, "").toLowerCase();
+    if (
+      cleanPropName === "__proto__" ||
+      cleanPropName === "constructor" ||
+      cleanPropName === "prototype"
+    ) {
+      throw new RenderError(
+        "DANGEROUS_CODE_DETECTED",
+        `Prohibited property in style object: ${rawPropName}`,
+        { property: rawPropName },
       );
     }
 
@@ -151,6 +188,17 @@ function validateAttributes(
 
     const attrName = prop.name.getText(sourceFile).trim();
     const lowerAttrName = attrName.toLowerCase();
+    if (
+      lowerAttrName === "__proto__" ||
+      lowerAttrName === "constructor" ||
+      lowerAttrName === "prototype"
+    ) {
+      throw new RenderError(
+        "DANGEROUS_CODE_DETECTED",
+        `Prohibited attribute name: ${attrName}`,
+        { attribute: attrName },
+      );
+    }
 
     if (lowerAttrName.startsWith("on")) {
       throw new RenderError(
@@ -248,7 +296,15 @@ function validateElement(
   element: ts.JsxElement | ts.JsxSelfClosingElement,
   sourceFile: ts.SourceFile,
   options?: ValidatorOptions,
+  depth = 1,
 ): void {
+  if (depth > MAX_AST_DEPTH) {
+    throw new RenderError(
+      "UNSUPPORTED_SYNTAX",
+      `AST depth exceeds maximum allowed depth of ${MAX_AST_DEPTH}`,
+      { depth, maxDepth: MAX_AST_DEPTH },
+    );
+  }
   const tagName = getTagName(element, sourceFile);
   const lowerTag = tagName.toLowerCase();
 
@@ -280,7 +336,7 @@ function validateElement(
       }
 
       if (ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) {
-        validateElement(child, sourceFile, options);
+        validateElement(child, sourceFile, options, depth + 1);
         continue;
       }
 
@@ -353,6 +409,7 @@ export function validateJsx(
     true,
     ts.ScriptKind.TSX,
   );
+  checkAstLimits(sourceFile);
 
   if (sourceFile.statements.length === 0) {
     throw new RenderError(
