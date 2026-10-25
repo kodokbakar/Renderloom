@@ -57,4 +57,45 @@ describe("Technical Constraints Builder", () => {
     );
     expect(text).toContain("must be strictly ignored");
   });
+
+  describe("Layout Centering and Canvas Overflow Regression (canvas-layout-overflow)", () => {
+    const squareDimensions = {
+      width: 1024,
+      height: 1024,
+      aspectRatio: "1:1" as const,
+    };
+
+    test("mandates boxSizing: 'border-box' and explicit flexDirection: 'column' on root container style", () => {
+      const text = buildTechnicalConstraints(squareDimensions);
+      const rootStyleMatch = text.match(/style=\{\{([^}]+)\}\}/);
+      expect(rootStyleMatch).not.toBeNull();
+      const rootStyle = rootStyleMatch![1];
+
+      expect(rootStyle).toContain("boxSizing: 'border-box'");
+      expect(rootStyle).toContain("flexDirection: 'column'");
+    });
+
+    test("enforces flex centering rules (alignItems: 'center' and justifyContent: 'center') avoiding arbitrary absolute pixel offsets", () => {
+      const text = buildTechnicalConstraints(squareDimensions);
+
+      expect(text).toContain("alignItems: 'center'");
+      expect(text).toContain("justifyContent: 'center'");
+      expect(text).toMatch(/arbitrary absolute.*offset/i);
+    });
+
+    test("mandates boxSizing: 'border-box' to prevent padding from expanding containers beyond canvas size", () => {
+      const text = buildTechnicalConstraints(squareDimensions);
+
+      expect(text).toContain("boxSizing: 'border-box'");
+      expect(text).toMatch(/padding.*expand/i);
+    });
+
+    test("mandates wordBreak: 'break-word' and text containment rules to prevent multi-line paragraph overflow", () => {
+      const text = buildTechnicalConstraints(squareDimensions);
+
+      expect(text).toContain("wordBreak: 'break-word'");
+      expect(text).toMatch(/paragraph|multi-line text/i);
+      expect(text).toMatch(/overflow|bounds/i);
+    });
+  });
 });
