@@ -51,6 +51,20 @@ describe("Story Mode Domain & Prompt Composition", () => {
       expect(roles).toEqual(["hook", "core", "core", "core", "payoff"]);
     });
 
+    test("four slides (N=4) progression has two Core slides with proper goals", () => {
+      const s1 = getStorySlideDefinition(1, 4);
+      const s2 = getStorySlideDefinition(2, 4);
+      const s3 = getStorySlideDefinition(3, 4);
+      const s4 = getStorySlideDefinition(4, 4);
+
+      expect(s1.role).toBe("hook");
+      expect(s2.role).toBe("core");
+      expect(s2.narrativeGoal).toContain("slide 2 of 4");
+      expect(s3.role).toBe("core");
+      expect(s3.narrativeGoal).toContain("slide 3 of 4");
+      expect(s4.role).toBe("payoff");
+    });
+
     test("ten slides (N=10) boundary check", () => {
       const s1 = getStorySlideDefinition(1, 10);
       const s5 = getStorySlideDefinition(5, 10);
@@ -59,12 +73,34 @@ describe("Story Mode Domain & Prompt Composition", () => {
       expect(s1.role).toBe("hook");
       expect(s5.role).toBe("core");
       expect(s10.role).toBe("payoff");
+
+      const allRoles = Array.from(
+        { length: 10 },
+        (_, i) => getStorySlideDefinition(i + 1, 10).role,
+      );
+      expect(allRoles).toEqual([
+        "hook",
+        "core",
+        "core",
+        "core",
+        "core",
+        "core",
+        "core",
+        "core",
+        "core",
+        "payoff",
+      ]);
     });
 
     test("clamps out-of-range index and totalSlides safely", () => {
       const clampedLow = getStorySlideDefinition(0, 0);
       expect(clampedLow.index).toBe(1);
       expect(clampedLow.totalSlides).toBe(1);
+
+      const clampedNegative = getStorySlideDefinition(-5, -10);
+      expect(clampedNegative.index).toBe(1);
+      expect(clampedNegative.totalSlides).toBe(1);
+      expect(clampedNegative.role).toBe("hook");
 
       const clampedHigh = getStorySlideDefinition(15, 4);
       expect(clampedHigh.index).toBe(4);
@@ -96,11 +132,31 @@ describe("Story Mode Domain & Prompt Composition", () => {
     });
 
     test("buildOutputContractInstructions incorporates slide narrative role when provided", () => {
-      const slide = getStorySlideDefinition(1, 4);
-      const contract = buildOutputContractInstructions(1, slide);
-      expect(contract).toContain("Slide 1 of 4 (Hook phase)");
-      expect(contract).toContain(
+      const slideHook = getStorySlideDefinition(1, 4);
+      const contractHook = buildOutputContractInstructions(1, slideHook);
+      expect(contractHook).toContain("Slide 1 of 4 (Hook phase)");
+      expect(contractHook).toContain(
         "explicitly reference the narrative role (hook)",
+      );
+
+      const slideCore = getStorySlideDefinition(2, 4);
+      const contractCore = buildOutputContractInstructions(1, slideCore);
+      expect(contractCore).toContain("Slide 2 of 4 (Core phase)");
+      expect(contractCore).toContain(
+        "explicitly reference the narrative role (core)",
+      );
+
+      const slidePayoff = getStorySlideDefinition(4, 4);
+      const contractPayoff = buildOutputContractInstructions(1, slidePayoff);
+      expect(contractPayoff).toContain("Slide 4 of 4 (Payoff phase)");
+      expect(contractPayoff).toContain(
+        "explicitly reference the narrative role (payoff)",
+      );
+
+      // Default without storySlide
+      const contractDefault = buildOutputContractInstructions(3);
+      expect(contractDefault).toContain(
+        "Each candidate must represent a distinct visual exploration",
       );
     });
   });
@@ -165,7 +221,52 @@ describe("Story Mode Domain & Prompt Composition", () => {
       expect(composed.userPrompt).toContain("Candidate Count: 10");
     });
 
-    test("rejects candidate count above MAX_CANDIDATE_COUNT", async () => {
+    test("accepts boundary candidate counts in story mode (N=1 and N=10)", async () => {
+      // N=1
+      const comp1 = await composePrompt({
+        prompt: "Single slide story",
+        styleId: "swiss",
+        candidateCount: 1,
+        storyMode: true,
+      });
+      expect(comp1.metadata.candidateCount).toBe(1);
+      expect(comp1.metadata.storySlide?.role).toBe("hook");
+      expect(comp1.metadata.storySlide?.totalSlides).toBe(1);
+
+      // N=10 Payoff slide
+      const slide10 = getStorySlideDefinition(10, 10);
+      const comp10 = await composePrompt({
+        prompt: "10-slide architectural retrospective",
+        styleId: "minimal",
+        candidateCount: 10,
+        storyMode: true,
+        storySlide: slide10,
+      });
+      expect(comp10.metadata.candidateCount).toBe(10);
+      expect(comp10.metadata.storySlide?.role).toBe("payoff");
+      expect(comp10.systemPrompt).toContain("PAYOFF");
+      expect(comp10.userPrompt).toContain(
+        "Story Mode: Active (Payoff - Slide 10/10)",
+      );
+    });
+
+    test("rejects candidate count below MIN_CANDIDATE_COUNT or above MAX_CANDIDATE_COUNT", async () => {
+      expect(
+        composePrompt({
+          prompt: "Out of bounds count",
+          styleId: "minimal",
+          candidateCount: 0,
+        }),
+      ).rejects.toThrow(ValidationError);
+
+      expect(
+        composePrompt({
+          prompt: "Out of bounds count",
+          styleId: "minimal",
+          candidateCount: -1,
+        }),
+      ).rejects.toThrow(ValidationError);
+
       expect(
         composePrompt({
           prompt: "Out of bounds count",

@@ -197,4 +197,129 @@ describe("StudioControls", () => {
     expect(html6).toContain("Core ×4");
     expect(html6).toContain("Payoff");
   });
+
+  test("narrative arc badge with count of 1 renders only Hook and no arrows or other phases", () => {
+    const html1 = renderToStaticMarkup(
+      <StudioControls
+        session={mockSession}
+        generationConfig={{
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          styleId: "tech-minimal",
+          candidateCount: 1,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          createdAt: "2026-10-24T00:00:00.000Z",
+          storyMode: true,
+        }}
+        isGenerating={false}
+        onGenerate={async () => {}}
+      />,
+    );
+
+    expect(html1).toContain('data-testid="narrative-arc-badge"');
+    expect(html1).toContain("Hook");
+    expect(html1).not.toContain("→");
+    expect(html1).not.toContain('class="arc-step core"');
+    expect(html1).not.toContain('class="arc-step payoff"');
+  });
+
+  test("narrative arc badge with count of 5 and 10 displays correct core multiplier", () => {
+    const html5 = renderToStaticMarkup(
+      <StudioControls
+        session={mockSession}
+        generationConfig={{
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          styleId: "tech-minimal",
+          candidateCount: 5,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          createdAt: "2026-10-24T00:00:00.000Z",
+          storyMode: true,
+        }}
+        isGenerating={false}
+        onGenerate={async () => {}}
+      />,
+    );
+    expect(html5).toContain("Core ×3");
+
+    const html10 = renderToStaticMarkup(
+      <StudioControls
+        session={mockSession}
+        generationConfig={{
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          styleId: "tech-minimal",
+          candidateCount: 10,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          createdAt: "2026-10-24T00:00:00.000Z",
+          storyMode: true,
+        }}
+        isGenerating={false}
+        onGenerate={async () => {}}
+      />,
+    );
+    expect(html10).toContain("Core ×8");
+    expect(html10).toContain("Hook");
+    expect(html10).toContain("Payoff");
+  });
+
+  test("story mode toggle is inactive and badge is omitted when storyMode is false", () => {
+    const html = renderToStaticMarkup(
+      <StudioControls
+        session={mockSession}
+        generationConfig={{
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          styleId: "tech-minimal",
+          candidateCount: 4,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          createdAt: "2026-10-24T00:00:00.000Z",
+          storyMode: false,
+        }}
+        isGenerating={false}
+        onGenerate={async () => {}}
+      />,
+    );
+
+    expect(html).toContain('data-testid="studio-story-mode-toggle"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).not.toContain('data-testid="narrative-arc-badge"');
+  });
+
+  test("disables custom count input and story mode toggle during active generation", () => {
+    const html = renderToStaticMarkup(
+      <StudioControls
+        session={mockSession}
+        generationConfig={{
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          styleId: "tech-minimal",
+          candidateCount: 7,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          createdAt: "2026-10-24T00:00:00.000Z",
+          storyMode: true,
+        }}
+        isGenerating={true}
+        onGenerate={async () => {}}
+      />,
+    );
+
+    expect(html).toContain('data-testid="studio-custom-count-input"');
+    expect(html).toContain('data-testid="studio-story-mode-toggle"');
+    // Both custom count input and story mode toggle have disabled attribute
+    expect(html).toMatch(
+      /data-testid="studio-custom-count-input"[^>]*disabled/,
+    );
+    expect(html).toMatch(/data-testid="studio-story-mode-toggle"[^>]*disabled/);
+  });
 });

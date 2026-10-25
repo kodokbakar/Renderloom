@@ -221,4 +221,220 @@ describe("GenerationCoordinator Story Mode Integration", () => {
     const lastPrompt = retryPrompts[retryPrompts.length - 1];
     expect(lastPrompt).toContain("Payoff");
   });
+
+  test("startGeneration in Story Mode with count=1 produces single candidate with Hook role", async () => {
+    const capturedPrompts: { prompt: string; systemPrompt: string }[] = [];
+
+    const adapter = new MockAdapter(async (req) => {
+      capturedPrompts.push({
+        prompt: req.prompt,
+        systemPrompt: req.systemPrompt ?? "",
+      });
+      return {
+        rawText: JSON.stringify({
+          candidates: [
+            {
+              candidateIndex: 1,
+              label: "Single Story Slide",
+              rationale: "Rationale",
+              jsx: "<div style={{ width: 200, height: 100 }}><span>Slide 1</span></div>",
+            },
+          ],
+        }),
+        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        durationMs: 5,
+        modelId: "mock-model",
+      };
+    });
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+      concurrency: 1,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "Single slide story concept",
+      candidateCount: 1,
+      storyMode: true,
+    });
+
+    await batch.completionPromise;
+    expect(batch.status).toBe("completed");
+    expect(batch.candidates.length).toBe(1);
+    expect(batch.candidates[0]?.candidate.storyArcRole).toBe("hook");
+    expect(capturedPrompts[0]?.prompt).toContain("Slide 1/1");
+    expect(capturedPrompts[0]?.systemPrompt).toContain("HOOK");
+  });
+
+  test("startGeneration in Story Mode with count=5 assigns Hook -> Core x3 -> Payoff", async () => {
+    const slidePrompts: string[] = [];
+
+    const adapter = new MockAdapter(async (req) => {
+      slidePrompts.push(req.prompt);
+      return {
+        rawText: JSON.stringify({
+          candidates: [
+            {
+              candidateIndex: 1,
+              label: "Multi Story Candidate",
+              rationale: "Rationale",
+              jsx: "<div style={{ width: 200, height: 100 }}><span>Slide</span></div>",
+            },
+          ],
+        }),
+        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        durationMs: 5,
+        modelId: "mock-model",
+      };
+    });
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+      concurrency: 5,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "5-slide story arc presentation",
+      candidateCount: 5,
+      storyMode: true,
+    });
+
+    await batch.completionPromise;
+    expect(batch.status).toBe("completed");
+    expect(batch.candidates.length).toBe(5);
+
+    const roles = batch.candidates.map((c) => c.candidate.storyArcRole);
+    expect(roles).toEqual(["hook", "core", "core", "core", "payoff"]);
+
+    expect(slidePrompts.length).toBe(5);
+    expect(
+      slidePrompts.some((p) => p.includes("Slide 1/5") && p.includes("Hook")),
+    ).toBe(true);
+    expect(
+      slidePrompts.some((p) => p.includes("Slide 2/5") && p.includes("Core")),
+    ).toBe(true);
+    expect(
+      slidePrompts.some((p) => p.includes("Slide 3/5") && p.includes("Core")),
+    ).toBe(true);
+    expect(
+      slidePrompts.some((p) => p.includes("Slide 4/5") && p.includes("Core")),
+    ).toBe(true);
+    expect(
+      slidePrompts.some((p) => p.includes("Slide 5/5") && p.includes("Payoff")),
+    ).toBe(true);
+  });
+
+  test("startGeneration in standard mode (storyMode=false) does not assign storyArcRole", async () => {
+    const adapter = new MockAdapter(async () => {
+      return {
+        rawText: JSON.stringify({
+          candidates: [
+            {
+              candidateIndex: 1,
+              label: "Standard Candidate",
+              rationale: "Rationale",
+              jsx: "<div style={{ width: 200, height: 100 }}><span>Standard</span></div>",
+            },
+          ],
+        }),
+        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        durationMs: 5,
+        modelId: "mock-model",
+      };
+    });
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+      concurrency: 4,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "4 distinct visual ideas",
+      candidateCount: 4,
+      storyMode: false,
+    });
+
+    await batch.completionPromise;
+    expect(batch.status).toBe("completed");
+    expect(batch.options.storyMode).toBe(false);
+    expect(batch.candidates.length).toBe(4);
+
+    for (const c of batch.candidates) {
+      expect(c.candidate.storyArcRole).toBeUndefined();
+    }
+  });
+
+  test("retryCandidate for middle Core slide preserves core narrative role", async () => {
+    let callCount = 0;
+    const adapter = new MockAdapter(async (req) => {
+      callCount++;
+      // Fail slide 2 (Core) on first attempt
+      if (callCount === 2) {
+        throw new Error("Core slide failure");
+      }
+      return {
+        rawText: JSON.stringify({
+          candidates: [
+            {
+              candidateIndex: 1,
+              label: "Core Slide",
+              rationale: "Rationale",
+              jsx: "<div style={{ width: 200, height: 100 }}><span>Core</span></div>",
+            },
+          ],
+        }),
+        usage: { promptTokens: 5, completionTokens: 5, totalTokens: 10 },
+        durationMs: 5,
+        modelId: "mock-model",
+      };
+    });
+    providerRegistry.register(adapter);
+
+    const coordinator = new GenerationCoordinator({
+      sessionService,
+      providerRegistry,
+      keyStore,
+      styleRegistry,
+      concurrency: 1,
+    });
+
+    const batch = await coordinator.startGeneration({
+      sessionId,
+      prompt: "3-slide presentation",
+      candidateCount: 3,
+      storyMode: true,
+      maxRetries: 0,
+    });
+
+    await batch.completionPromise;
+    const coreCandidateRecord = batch.candidates[1];
+    expect(coreCandidateRecord?.candidate.state).toBe("failed");
+    expect(coreCandidateRecord?.candidate.storyArcRole).toBe("core");
+
+    if (!coreCandidateRecord) {
+      throw new Error("Missing candidate record");
+    }
+
+    const retried = await coordinator.retryCandidate(
+      batch.id,
+      coreCandidateRecord.candidateId,
+    );
+    expect(retried.state).toBe("completed");
+    expect(retried.storyArcRole).toBe("core");
+  });
 });

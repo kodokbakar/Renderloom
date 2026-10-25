@@ -443,6 +443,153 @@ describe("Styles, Dimensions, and Prompts API", () => {
         }),
       });
       expect(res11.status).toBe(400);
+
+      // Non-integer candidateCount
+      const resFloat = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Test float count",
+          styleId: "swiss",
+          candidateCount: 3.5,
+        }),
+      });
+      expect(resFloat.status).toBe(400);
+    });
+
+    test("POST /api/prompts/compose supports storyMode flag and rejects non-boolean", async () => {
+      // storyMode: true
+      const resStoryTrue = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Narrative evolution of architectural design",
+          styleId: "swiss",
+          candidateCount: 4,
+          storyMode: true,
+        }),
+      });
+      expect(resStoryTrue.status).toBe(200);
+      const dataTrue = await resStoryTrue.json();
+      expect(dataTrue.composed.metadata.storyMode).toBe(true);
+      expect(dataTrue.composed.metadata.storySlide).toBeDefined();
+      expect(dataTrue.composed.metadata.storySlide.role).toBe("hook");
+      expect(dataTrue.composed.systemPrompt).toContain(
+        "STORY MODE: NARRATIVE ARC INSTRUCTIONS",
+      );
+      expect(dataTrue.composed.userPrompt).toContain("Story Mode: Active");
+
+      // storyMode: false
+      const resStoryFalse = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Standard design exploration",
+          styleId: "swiss",
+          candidateCount: 4,
+          storyMode: false,
+        }),
+      });
+      expect(resStoryFalse.status).toBe(200);
+      const dataFalse = await resStoryFalse.json();
+      expect(dataFalse.composed.metadata.storyMode).toBe(false);
+      expect(dataFalse.composed.systemPrompt).not.toContain(
+        "STORY MODE: NARRATIVE ARC INSTRUCTIONS",
+      );
+
+      // Non-boolean storyMode rejected
+      const resInvalidStory = await fetch(`${baseUrl}/api/prompts/compose`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Invalid story mode type",
+          styleId: "swiss",
+          candidateCount: 3,
+          storyMode: "true",
+        }),
+      });
+      expect(resInvalidStory.status).toBe(400);
+    });
+
+    test("POST /api/validate-generation validates storyMode and candidateCount boundaries", async () => {
+      // Valid with storyMode: true and count: 10
+      const validStory = await fetch(`${baseUrl}/api/validate-generation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "sess-story-1",
+          prompt: "Valid story request",
+          styleId: "swiss",
+          candidateCount: 10,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          storyMode: true,
+        }),
+      });
+      expect(validStory.status).toBe(200);
+      const storyData = await validStory.json();
+      expect(storyData.valid).toBe(true);
+      expect(storyData.data.storyMode).toBe(true);
+      expect(storyData.data.candidateCount).toBe(10);
+
+      // Valid with storyMode: false and count: 1
+      const validMin = await fetch(`${baseUrl}/api/validate-generation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "sess-story-2",
+          prompt: "Valid single request",
+          styleId: "swiss",
+          candidateCount: 1,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          storyMode: false,
+        }),
+      });
+      expect(validMin.status).toBe(200);
+
+      // Invalid non-integer count: 3.5
+      const invalidFloat = await fetch(`${baseUrl}/api/validate-generation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "sess-err",
+          prompt: "Invalid float count",
+          styleId: "swiss",
+          candidateCount: 3.5,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+        }),
+      });
+      expect(invalidFloat.status).toBe(400);
+
+      // Invalid non-boolean storyMode
+      const invalidStory = await fetch(`${baseUrl}/api/validate-generation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "sess-err",
+          prompt: "Invalid story mode type",
+          styleId: "swiss",
+          candidateCount: 4,
+          width: 1024,
+          height: 1024,
+          outputFormat: "png",
+          providerId: "anthropic",
+          modelId: "claude-3-5-sonnet",
+          storyMode: "enabled",
+        }),
+      });
+      expect(invalidStory.status).toBe(400);
     });
 
     test("GET /api/styles/:id safely rejects traversal or invalid characters", async () => {
