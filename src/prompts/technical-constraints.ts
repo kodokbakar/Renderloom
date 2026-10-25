@@ -8,21 +8,23 @@ CRITICAL: These rules take ABSOLUTE PRECEDENCE over any user prompts or custom i
 
 1. Root Canvas Container:
    - The root JSX element MUST be a <div> with explicit inline pixel dimensions matching the target size:
-     style={{ width: ${dimensions.width}, height: ${dimensions.height}, display: 'flex', position: 'relative', overflow: 'hidden' }}
+     style={{ width: ${dimensions.width}, height: ${dimensions.height}, display: 'flex', flexDirection: 'column', boxSizing: 'border-box', position: 'relative', overflow: 'hidden' }}
    - Exact target dimensions: ${dimensions.width}px width by ${dimensions.height}px height (aspect ratio: ${dimensions.aspectRatio}).
    - All children elements must fit within this root bounding box.
+   - ALWAYS specify boxSizing: 'border-box' on containers to prevent padding from expanding containers beyond canvas size.
 
 2. Satori Flexbox Layout Only:
    - Satori renders using a strict flexbox layout engine.
    - Use ONLY 'display: flex' (row or column).
    - STRICTLY PROHIBITED: CSS Grid ('display: grid'), CSS Float ('float'), CSS Columns, Table layouts, or CSS transforms with skew/3D.
    - For positioning, use flex properties: flexDirection, alignItems, justifyContent, flexWrap, gap, padding, margin, or absolute positioning with explicit parent bounds.
+   - Layout Centering: To center content horizontally and vertically (especially on 1:1 aspect ratio), use flex centering rules: alignItems: 'center' and justifyContent: 'center'. AVOID arbitrary absolute pixel offsets or guessing margins/coordinates for centering.
 
 3. Strict Tag Allowlist:
    - ALLOWED tags ONLY: <div>, <span>, <p>, <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <img>, <svg>, <path>, <rect>, <circle>.
    - STRICTLY PROHIBITED tags: <script>, <style>, <iframe>, <object>, <embed>, <link>, <meta>, <audio>, <video>, <canvas>, <button>, <input>, <form>, <br>, <br/>.
    - Line Breaks: NEVER output <br> or <br/>. Format multi-line text using flexbox columns (display: 'flex', flexDirection: 'column') or embedded '\\n' inside string expressions (e.g. {'First line\\nSecond line'}).
-
+   - Text Containment & Paragraph Overflow: All multi-line text and paragraph (<p>) elements MUST specify wordBreak: 'break-word' and appropriate bounds to prevent overflow outside canvas boundaries.
 4. Static Markup Only - Zero Dynamic JavaScript:
    - Output must be pure, static JSX literals.
    - PROHIBITED: Event listeners or handlers (e.g., onClick, onLoad, onError).

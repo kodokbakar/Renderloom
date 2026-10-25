@@ -69,7 +69,7 @@ describe("Technical Constraints Builder", () => {
       const text = buildTechnicalConstraints(squareDimensions);
       const rootStyleMatch = text.match(/style=\{\{([^}]+)\}\}/);
       expect(rootStyleMatch).not.toBeNull();
-      const rootStyle = rootStyleMatch![1];
+      const rootStyle = rootStyleMatch?.[1];
 
       expect(rootStyle).toContain("boxSizing: 'border-box'");
       expect(rootStyle).toContain("flexDirection: 'column'");
