@@ -200,6 +200,31 @@ describe("Revisions HTTP API", () => {
     expect(data.candidate.versions?.length).toBe(2);
   });
 
+  test("POST /api/sessions/:id/candidates/:candidateId/revisions accepts explicit providerId and modelId", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/sessions/${sessionId}/candidates/${candidateId}/revisions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: "Refine typography with custom model",
+            providerId: "mock",
+            modelId: "custom-mock-model",
+          }),
+        },
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      candidate: Candidate;
+      version: Version;
+    };
+    expect(data.version.id).toBe("v002");
+    expect(data.version.modelMetadata?.providerId).toBe("mock");
+  });
+
   test("POST /api/sessions/:id/candidates/:candidateId/revisions returns 400 on empty prompt", async () => {
     const res = await server.fetch(
       new Request(

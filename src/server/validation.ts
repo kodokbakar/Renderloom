@@ -79,6 +79,34 @@ export const RenameSessionRequestSchema = z.object({
   name: z.string().min(1, "name is required").max(100),
 });
 
+export const UpdateSessionRequestSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "name cannot be empty")
+      .max(100, "name exceeds maximum length of 100 characters")
+      .optional(),
+    providerId: z
+      .string()
+      .trim()
+      .min(1, "providerId cannot be empty")
+      .optional(),
+    modelId: z.string().trim().min(1, "modelId cannot be empty").optional(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.providerId !== undefined ||
+      data.modelId !== undefined,
+    {
+      message:
+        "At least one field (name, providerId, modelId) must be provided",
+    },
+  );
+
+export type UpdateSessionRequest = z.infer<typeof UpdateSessionRequestSchema>;
+
 export const ArtifactParamsSchema = z.object({
   id: z.string().min(1),
   type: z.enum(["images", "source", "svg", "assets"]),
@@ -199,6 +227,19 @@ export function validateRenameSessionRequest(input: unknown): { name: string } {
   if (!result.success) {
     throw new ValidationError(
       "Invalid session rename request",
+      result.error.format(),
+    );
+  }
+  return result.data;
+}
+
+export function validateUpdateSessionRequest(
+  input: unknown,
+): UpdateSessionRequest {
+  const result = UpdateSessionRequestSchema.safeParse(input);
+  if (!result.success) {
+    throw new ValidationError(
+      "Invalid session update request",
       result.error.format(),
     );
   }

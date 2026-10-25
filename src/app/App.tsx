@@ -85,6 +85,8 @@ export function App({
   );
   const [styles, setStyles] = useState<StylePresetSummary[]>([]);
   const [providers, setProviders] = useState<ProviderMeta[]>([]);
+  const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+  const [activeModelId, setActiveModelId] = useState<string | null>(null);
 
   const session = fullSession?.session;
   const candidates: Candidate[] = session?.candidates || [];
@@ -282,6 +284,8 @@ export function App({
       if (res.ok) {
         const data = (await res.json()) as FullSession;
         setFullSession(data);
+        setActiveProviderId(data.session?.providerId || null);
+        setActiveModelId(data.session?.modelId || null);
         const firstCand = data.session?.candidates?.[0];
         setSelectedCandidateId(firstCand ? firstCand.id : null);
         setIsPreviewOpen(false);
@@ -349,6 +353,8 @@ export function App({
       if (detailRes.ok) {
         const full = (await detailRes.json()) as FullSession;
         setFullSession(full);
+        setActiveProviderId(full.session?.providerId || null);
+        setActiveModelId(full.session?.modelId || null);
         const firstCand = full.session?.candidates?.[0];
         setSelectedCandidateId(firstCand ? firstCand.id : null);
       } else {
@@ -372,6 +378,8 @@ export function App({
           },
           artifacts: { images: [], source: [], svg: [], assets: [] },
         });
+        setActiveProviderId(newSession.providerId);
+        setActiveModelId(newSession.modelId);
       }
     } catch {
       // Fallback
@@ -582,6 +590,56 @@ export function App({
     }
   };
 
+  const handleStudioModelChange = async (
+    newProviderId: string,
+    newModelId: string,
+  ) => {
+    setActiveProviderId(newProviderId);
+    setActiveModelId(newModelId);
+
+    setFullSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        session: {
+          ...prev.session,
+          providerId: newProviderId,
+          modelId: newModelId,
+        },
+        generationConfig: prev.generationConfig
+          ? {
+              ...prev.generationConfig,
+              providerId: newProviderId,
+              modelId: newModelId,
+            }
+          : prev.generationConfig,
+      };
+    });
+
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === session?.id
+          ? { ...s, providerId: newProviderId, modelId: newModelId }
+          : s,
+      ),
+    );
+
+    if (session?.id) {
+      try {
+        await fetch(`/api/sessions/${session.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            providerId: newProviderId,
+            modelId: newModelId,
+          }),
+        });
+      } catch {
+        // Offline fallback
+      }
+    }
+  };
+
   const handleReviseCandidate = async (
     candidateId: string,
     prompt: string,
@@ -590,12 +648,20 @@ export function App({
     if (!session) return;
     setIsRevising(true);
     try {
+      const providerIdToUse = activeProviderId || session.providerId;
+      const modelIdToUse = activeModelId || session.modelId;
+
       const res = await fetch(
         `/api/sessions/${session.id}/candidates/${candidateId}/revisions`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt, parentVersionId }),
+          body: JSON.stringify({
+            prompt,
+            parentVersionId,
+            providerId: providerIdToUse,
+            modelId: modelIdToUse,
+          }),
         },
       );
       if (res.ok) {
@@ -726,6 +792,7 @@ export function App({
               isGenerating || session?.lastBatchStatus === "running"
             }
             onGenerate={handleGenerate}
+            onModelChange={handleStudioModelChange}
           />
 
           <main className="workspace-main">

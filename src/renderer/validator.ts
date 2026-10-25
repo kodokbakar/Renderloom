@@ -2,6 +2,7 @@ import ts from "typescript";
 import { MAX_AST_DEPTH, MAX_AST_NODES } from "../domain/dimensions";
 import { RenderError } from "../domain/errors";
 import { validateAssetSource, validateCssUrls } from "./assets";
+import { transformJsx } from "./transform";
 import { ALLOWED_ELEMENTS, type AllowedElement } from "./types";
 
 const DANGEROUS_TAGS: Record<string, true> = {
@@ -403,7 +404,8 @@ export function validateJsx(
   jsxSource: string,
   options?: ValidatorOptions,
 ): ValidatedJsx {
-  const trimmed = jsxSource.trim();
+  const transformed = transformJsx(jsxSource);
+  const trimmed = transformed.trim();
   if (trimmed.length === 0) {
     throw new RenderError("UNSUPPORTED_SYNTAX", "Empty JSX source");
   }
