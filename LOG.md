@@ -254,3 +254,18 @@
   - Scans generated session files confirming zero secret or API key leaks.
 - Updated `ROADMAP.md`: Marked all Phase 9 items and all 10 Section 6 Required MVP Completion Checklist items complete.
 - Verified: `bun test` (595 passing tests across 73 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite production build).
+
+### Post-MVP Fixes: `<br>` Tag Sanitization and Revision Model Forwarding [br-and-revision-model]
+- Bug 1 (`<br>` element handling):
+  - Updated `src/prompts/technical-constraints.ts`: Explicitly prohibited `<br>` / `<br/>` and mandated flexbox column layouts or `\n` newline expressions for line breaks.
+  - Implemented `src/renderer/transform.ts`: Sanitizes `<br>` and `<br/>` tags into valid JSX newline expressions `{"\n"}` prior to AST validation.
+  - Exported transformer in `src/renderer/index.ts` and integrated in `src/renderer/validator.ts:validateJsx()`.
+  - Added test coverage in `tests/renderer/validator.test.ts` and `tests/renderer/render.test.ts`.
+- Bug 2 (Custom AI model forwarding during candidate revisions):
+  - Extended `UpdateSessionRequestSchema` and `validateUpdateSessionRequest` in `src/server/validation.ts`.
+  - Added `updateSession()` in `src/sessions/service.ts` to persist `providerId` and `modelId` changes to `session.json` and `generation-config.json`.
+  - Updated `PATCH /api/sessions/:id` route in `src/server/routes/sessions.ts` to support updating `providerId` and `modelId`.
+  - Updated `src/components/StudioControls.tsx` with `onModelChange` callback and auto-syncing with session state.
+  - Updated `src/app/App.tsx` to track active model/provider and explicitly forward `providerId` and `modelId` in `POST /api/sessions/:id/candidates/:candidateId/revisions`.
+  - Added unit and integration tests in `tests/server/sessions-api.test.ts`, `tests/server/revisions-api.test.ts`, and `tests/app/app-revision-integration.test.tsx`.
+- Verified: `bun test` (723 passing tests across 93 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite production build).
