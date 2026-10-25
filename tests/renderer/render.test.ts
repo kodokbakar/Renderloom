@@ -57,6 +57,31 @@ describe("Core Renderer Engine", () => {
     expect(dims.height).toBe(1080);
   });
 
+  test("renders heading elements h1 through h6 to SVG and PNG", async () => {
+    const jsx = `
+      <div style={{ display: "flex", flexDirection: "column", width: 600, height: 400, backgroundColor: "#ffffff" }}>
+        <h1 style={{ fontSize: 32, color: "#111827" }}>Title 1</h1>
+        <h2 style={{ fontSize: 24, color: "#374151" }}>Title 2</h2>
+        <h3 style={{ fontSize: 20, color: "#4b5563" }}>Title 3</h3>
+        <h4 style={{ fontSize: 16, color: "#6b7280" }}>Title 4</h4>
+        <h5 style={{ fontSize: 14, color: "#9ca3af" }}>Title 5</h5>
+        <h6 style={{ fontSize: 12, color: "#d1d5db" }}>Title 6</h6>
+      </div>
+    `;
+
+    const result = await render(jsx, { width: 600, height: 400 });
+    expect(result.width).toBe(600);
+    expect(result.height).toBe(400);
+    expect(result.svg).toContain("<svg");
+    expect(result.svg).toContain('width="600"');
+    expect(result.svg).toContain('height="400"');
+    expect(result.svg).toContain("<path");
+    expect(result.svg).toContain("#111827");
+    expect(result.svg).toContain("#d1d5db");
+    expect(Buffer.isBuffer(result.png)).toBe(true);
+    expect(result.png.length).toBeGreaterThan(100);
+  });
+
   test("rejects invalid dimensions", async () => {
     const jsx = `<div style={{ display: "flex" }}>Hello</div>`;
 

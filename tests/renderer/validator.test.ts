@@ -397,6 +397,21 @@ describe("Restricted JSX Validator", () => {
       const validated = validateJsx(code);
       expect(validated.rootElement).toBeDefined();
     });
+
+    test("accepts heading elements h1 through h6", () => {
+      const code = `
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <h1>Heading 1</h1>
+          <h2>Heading 2</h2>
+          <h3>Heading 3</h3>
+          <h4>Heading 4</h4>
+          <h5>Heading 5</h5>
+          <h6>Heading 6</h6>
+        </div>
+      `;
+      const validated = validateJsx(code);
+      expect(validated.rootElement).toBeDefined();
+    });
   });
 
   describe("Negative Security: eval, new Function, and dynamic imports", () => {
