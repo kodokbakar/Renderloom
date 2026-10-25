@@ -22,6 +22,20 @@ describe("Candidate Output Contract & Parser", () => {
     expect(multi).toContain("Provide exactly 3 candidate objects");
   });
 
+  test("generates output instructions with storySlide including negative text constraints", () => {
+    const storyContract = buildOutputContractInstructions(1, {
+      role: "hook",
+      roleName: "Hook",
+      index: 1,
+      totalSlides: 3,
+      narrativeGoal: "High visual impact",
+    });
+    expect(storyContract).toContain("Slide 1 of 3 (Hook phase)");
+    expect(storyContract).toContain(
+      'do NOT render narrative phase labels ("Hook", "Core", "Payoff") or slide index text',
+    );
+  });
+
   test("parses pure raw JSON response", () => {
     const raw = JSON.stringify({
       candidates: [sampleCandidate],

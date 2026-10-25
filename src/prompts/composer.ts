@@ -40,6 +40,10 @@ ${slide.narrativeGoal}
 Design Directives for ${slide.roleName}:
 ${directives}
 
+Negative Constraints (Critical):
+- DO NOT render narrative phase labels ("Hook", "Core", "Payoff"), slide role names, or slide sequence numbers/indices (e.g. "Slide ${slide.index}", "Slide ${slide.index} of ${slide.totalSlides}") as visible text on the canvas unless explicitly requested by the user prompt.
+- The narrative role and slide indices are structural design guidance for you, NOT text copy to print on the graphic.
+
 Visual Cohesion:
 - All slides in this sequence share the requested style preset, color harmony, and typographic rules.
 - Maintain seamless design language continuity across the narrative arc.`;

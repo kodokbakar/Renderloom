@@ -129,6 +129,12 @@ describe("Story Mode Domain & Prompt Composition", () => {
       );
       expect(payoffInstr).toContain("PAYOFF");
       expect(payoffInstr).toContain("Provide resolution, impactful payoff");
+
+      expect(hookInstr).toContain("Negative Constraints (Critical):");
+      expect(hookInstr).toContain(
+        'DO NOT render narrative phase labels ("Hook", "Core", "Payoff")',
+      );
+      expect(hookInstr).toContain("slide sequence numbers/indices");
     });
 
     test("buildOutputContractInstructions incorporates slide narrative role when provided", () => {
@@ -137,6 +143,9 @@ describe("Story Mode Domain & Prompt Composition", () => {
       expect(contractHook).toContain("Slide 1 of 4 (Hook phase)");
       expect(contractHook).toContain(
         "explicitly reference the narrative role (hook)",
+      );
+      expect(contractHook).toContain(
+        'do NOT render narrative phase labels ("Hook", "Core", "Payoff") or slide index text',
       );
 
       const slideCore = getStorySlideDefinition(2, 4);
