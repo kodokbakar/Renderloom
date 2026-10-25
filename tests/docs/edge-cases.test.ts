@@ -270,4 +270,67 @@ describe("Documentation Edge Cases and Release Gates", () => {
     expect(featTemplate).toContain("labels: enhancement");
     expect(featTemplate).toContain("title: '[FEAT] '");
   });
+
+  test("verifies governance documents have no unresolved placeholder tokens and enforce valid contact email", async () => {
+    const governanceDocs = ["CONTRIBUTING.md", "CODE_OF_CONDUCT.md"];
+    const placeholders = [
+      "[INSERT",
+      "[TODO",
+      "TODO:",
+      "FIXME:",
+      "<your-email>",
+      "example.com",
+      "REPLACE_WITH",
+    ];
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+    for (const relFile of governanceDocs) {
+      const content = await readFile(path.join(rootDir, relFile), "utf-8");
+      for (const placeholder of placeholders) {
+        expect(content.includes(placeholder)).toBe(false);
+      }
+
+      const mailtoMatches = Array.from(content.matchAll(/mailto:([^\s)]+)/g));
+      expect(mailtoMatches.length).toBeGreaterThan(0);
+      for (const match of mailtoMatches) {
+        const email = match[1];
+        expect(email).toBe("conduct@renderloom.dev");
+        expect(emailRegex.test(email ?? "")).toBe(true);
+      }
+    }
+  });
+
+  test("verifies CONTRIBUTING.md resource limits and developer commands match project configuration", async () => {
+    const contributing = await readFile(
+      path.join(rootDir, "CONTRIBUTING.md"),
+      "utf-8",
+    );
+
+    expect(contributing).toContain(`MAX_AST_DEPTH = ${MAX_AST_DEPTH}`);
+    expect(contributing).toContain(`MAX_AST_NODES = ${MAX_AST_NODES}`);
+    expect(contributing).toContain("MAX_ASSET_BYTES = 5 MB");
+    expect(contributing).toContain("MAX_SVG_BYTES = 10 MB");
+    expect(contributing).toContain(
+      `MAX_RENDER_DURATION_MS = ${MAX_RENDER_DURATION_MS} ms`,
+    );
+
+    const pkg = JSON.parse(
+      await readFile(path.join(rootDir, "package.json"), "utf-8"),
+    );
+    const workflowCommands = [
+      "dev",
+      "build",
+      "test",
+      "lint",
+      "format",
+      "typecheck",
+    ];
+    for (const cmd of workflowCommands) {
+      const expectedInvocation =
+        cmd === "test" ? "`bun test`" : `\`bun run ${cmd}\``;
+      expect(contributing).toContain(expectedInvocation);
+      expect(pkg.scripts[cmd]).toBeDefined();
+    }
+  });
 });

@@ -12,41 +12,59 @@ const APPROVED_LICENSES: Record<string, true> = {
   "MPL-2.0": true,
 };
 
-describe("Dependency and Font License Review Suite", () => {
-  const rootDir = process.cwd();
+describe("License Review and Compliance Suite", () => {
+  const rootDir = path.resolve(__dirname, "../..");
 
-  test("verifies all runtime production dependencies have approved permissive licenses", async () => {
+  test("verifies project root license is GPL-3.0-or-later and contains copyright notice", async () => {
     const pkgPath = path.join(rootDir, "package.json");
     expect(existsSync(pkgPath)).toBe(true);
+    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+    expect(pkg.license).toBe("GPL-3.0-or-later");
 
-    const pkgContent = await readFile(pkgPath, "utf-8");
-    const pkg = JSON.parse(pkgContent);
+    const licensePath = path.join(rootDir, "LICENSE");
+    expect(existsSync(licensePath)).toBe(true);
+    const licenseText = await readFile(licensePath, "utf-8");
+    expect(licenseText).toContain("GNU GENERAL PUBLIC LICENSE");
+    expect(licenseText).toContain("Version 3, 29 June 2007");
+    expect(licenseText).toContain("Copyright (C) 2026 Renderloom Contributors");
+    expect(licenseText).toContain(
+      "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License",
+    );
+  });
 
-    const dependencies = pkg.dependencies ?? {};
-    const depNames = Object.keys(dependencies);
+  test("verifies all runtime production dependencies are GPL-3.0 compatible and documented in THIRD_PARTY_LICENSES.md", async () => {
+    const thirdPartyPath = path.join(rootDir, "THIRD_PARTY_LICENSES.md");
+    expect(existsSync(thirdPartyPath)).toBe(true);
+    const thirdPartyContent = await readFile(thirdPartyPath, "utf-8");
 
-    // Renderloom must have runtime dependencies declared
-    expect(depNames.length).toBeGreaterThan(0);
+    const pkgPath = path.join(rootDir, "package.json");
+    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+    const dependencies = Object.keys(pkg.dependencies ?? {});
+    expect(dependencies.length).toBeGreaterThan(0);
 
-    for (const dep of depNames) {
+    const GPLV3_COMPATIBLE_LICENSES: Record<string, true> = {
+      MIT: true,
+      "Apache-2.0": true,
+      "BSD-2-Clause": true,
+      "BSD-3-Clause": true,
+      ISC: true,
+      "MPL-2.0": true,
+    };
+
+    for (const dep of dependencies) {
+      expect(thirdPartyContent).toContain(`| \`${dep}\` |`);
+
       const depPkgPath = path.join(
         rootDir,
         "node_modules",
         dep,
         "package.json",
       );
-      expect(existsSync(depPkgPath)).toBe(true);
-
-      const depContent = await readFile(depPkgPath, "utf-8");
-      const depPkg = JSON.parse(depContent);
-
+      const depPkg = JSON.parse(await readFile(depPkgPath, "utf-8"));
       const license =
         depPkg.license ?? (depPkg.licenses?.[0]?.type || depPkg.licenses?.[0]);
       expect(license).toBeDefined();
-      expect(typeof license).toBe("string");
-
-      const isApproved = APPROVED_LICENSES[license as string];
-      expect(isApproved).toBe(true);
+      expect(GPLV3_COMPATIBLE_LICENSES[license as string]).toBe(true);
     }
   });
 
