@@ -295,7 +295,7 @@ describe("Documentation Edge Cases and Release Gates", () => {
       expect(mailtoMatches.length).toBeGreaterThan(0);
       for (const match of mailtoMatches) {
         const email = match[1];
-        expect(email).toBe("conduct@renderloom.dev");
+        expect(email).toBe("yudisbaek@gmail.com");
         expect(emailRegex.test(email ?? "")).toBe(true);
       }
     }

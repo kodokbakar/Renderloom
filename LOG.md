@@ -278,7 +278,7 @@
   - Maintained upstream dependency licenses unchanged in `THIRD_PARTY_LICENSES.md` (all remain under their respective permissive MIT, Apache-2.0, and SIL OFL 1.1 licenses).
 - Established open-source community governance and developer guidance:
   - Added `CONTRIBUTING.md`: Detailed developer guide covering Bun environment prerequisites, setup, workflow commands (`dev`, `build`, `test`, `lint`, `format`, `typecheck`), AST sandboxing rules (element allowlist, flexbox constraints, literal styles, resource bounds), BYOK in-memory credential model, local session persistence and immutable artifacts, branch naming (`feat/...`, `fix/...`), conventional commit messages, PR guidelines, and GPL-3.0 contribution terms.
-  - Added `CODE_OF_CONDUCT.md`: Adopted Contributor Covenant version 2.1 terms, reporting channel (`conduct@renderloom.dev`), and four-tier enforcement guidelines.
+  - Added `CODE_OF_CONDUCT.md`: Adopted Contributor Covenant version 2.1 terms, reporting channel (`yudisbaek@gmail.com`), and four-tier enforcement guidelines.
   - Updated `README.md` with a `## Contributing` section linking directly to `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
 - Updated test suites:
   - Updated `tests/docs/onboarding.test.ts` to require `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`, verify GPLv3 license terms, package.json license field, and key governance document sections.

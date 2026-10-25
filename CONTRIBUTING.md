@@ -10,7 +10,7 @@ Please review this document and our [Code of Conduct](CODE_OF_CONDUCT.md) before
 
 ## Code of Conduct
 
-All contributors and maintainers are expected to uphold our [Code of Conduct](CODE_OF_CONDUCT.md). Please report any unacceptable behavior to [conduct@renderloom.dev](mailto:conduct@renderloom.dev).
+All contributors and maintainers are expected to uphold our [Code of Conduct](CODE_OF_CONDUCT.md). Please report any unacceptable behavior to [yudisbaek@gmail.com](mailto:yudisbaek@gmail.com).
 
 ---
 
