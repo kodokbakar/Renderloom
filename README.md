@@ -120,7 +120,16 @@ Detailed guides are available in the [`docs/`](docs/) directory:
 
 ---
 
+## Contributing
+
+We welcome contributions to Renderloom! Please review our developer guide and community standards before submitting pull requests:
+
+- [Contributing Guide](CONTRIBUTING.md) — local environment setup, architecture principles, BYOK safety constraints, and testing workflows.
+- [Code of Conduct](CODE_OF_CONDUCT.md) — contributor standards and community pledge based on Contributor Covenant v2.1.
+
+---
+
 ## License
 
-Renderloom is licensed under the [MIT License](LICENSE).  
+Renderloom is free software licensed under the [GNU General Public License v3.0](LICENSE) (`GPL-3.0-or-later`).  
 Third-party dependency and bundled font licenses are documented in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

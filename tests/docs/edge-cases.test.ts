@@ -21,6 +21,8 @@ describe("Documentation Edge Cases and Release Gates", () => {
   test("verifies all internal relative markdown links across docs and README resolve to real files", async () => {
     const docFiles = [
       "README.md",
+      "CONTRIBUTING.md",
+      "CODE_OF_CONDUCT.md",
       "THIRD_PARTY_LICENSES.md",
       "docs/providers.md",
       "docs/renderer-satori.md",

@@ -15,6 +15,8 @@ describe("Onboarding and MVP Documentation Suite", () => {
     const requiredFiles = [
       "README.md",
       "LICENSE",
+      "CONTRIBUTING.md",
+      "CODE_OF_CONDUCT.md",
       "THIRD_PARTY_LICENSES.md",
       "docs/providers.md",
       "docs/renderer-satori.md",
@@ -39,13 +41,41 @@ describe("Onboarding and MVP Documentation Suite", () => {
     expect(readme).toContain("Demo Workflow");
     expect(readme).toContain("Security Model");
     expect(readme).toContain("Technical Documentation");
+    expect(readme).toContain("Contributing");
     expect(readme).toContain("License");
 
     // Verify LICENSE
     const license = await readFile(path.join(rootDir, "LICENSE"), "utf-8");
-    expect(license).toContain("MIT License");
+    expect(license).toContain("GNU GENERAL PUBLIC LICENSE");
+    expect(license).toContain("Version 3, 29 June 2007");
     expect(license).toContain("Renderloom Contributors");
 
+    // Verify CONTRIBUTING.md
+    const contributing = await readFile(
+      path.join(rootDir, "CONTRIBUTING.md"),
+      "utf-8",
+    );
+    expect(contributing).toContain("Bun");
+    expect(contributing).toContain("bun run dev");
+    expect(contributing).toContain("bun test");
+    expect(contributing).toContain("bun run lint");
+    expect(contributing).toContain("bun run typecheck");
+    expect(contributing).toContain("bun run build");
+    expect(contributing).toContain("AST");
+    expect(contributing).toContain("BYOK");
+    expect(contributing).toContain("CODE_OF_CONDUCT.md");
+    expect(contributing).toContain("GPL-3.0");
+
+    // Verify CODE_OF_CONDUCT.md
+    const coc = await readFile(
+      path.join(rootDir, "CODE_OF_CONDUCT.md"),
+      "utf-8",
+    );
+    expect(coc).toContain("Contributor Covenant");
+    expect(coc).toContain("2.1");
+    expect(coc).toContain("Our Pledge");
+    expect(coc).toContain("Our Standards");
+    expect(coc).toContain("Enforcement");
     // Verify THIRD_PARTY_LICENSES
     const thirdParty = await readFile(
       path.join(rootDir, "THIRD_PARTY_LICENSES.md"),
@@ -150,6 +180,7 @@ describe("Onboarding and MVP Documentation Suite", () => {
     expect(pkg.scripts.format).toBeDefined();
     expect(pkg.scripts.typecheck).toBeDefined();
     expect(pkg.scripts["generate:sample"]).toBeDefined();
+    expect(pkg.license).toBe("GPL-3.0-or-later");
   });
 
   test("verifies sample session generation creates valid candidates, versions, and binary assets", async () => {
