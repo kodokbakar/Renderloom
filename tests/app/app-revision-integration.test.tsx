@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { App } from "../../src/app/App";
 import { PreviewModal } from "../../src/components/PreviewModal";
+import { StudioControls } from "../../src/components/StudioControls";
 import type { Candidate } from "../../src/domain/candidate";
 import type { FullSession } from "../../src/domain/session";
 
@@ -163,5 +164,27 @@ describe("App & PreviewModal Revision Integration", () => {
       "AST syntax error: Unsupported node type &#x27;ImportDeclaration&#x27;",
     );
     expect(html).toContain("Active version remains usable");
+  });
+
+  test("StudioControls supports onModelChange callback and custom AI model input", () => {
+    let changedProvider = "";
+    let changedModel = "";
+
+    const html = renderToStaticMarkup(
+      <StudioControls
+        session={mockFullSession.session}
+        generationConfig={mockFullSession.generationConfig}
+        isGenerating={false}
+        onGenerate={async () => {}}
+        onModelChange={(p, m) => {
+          changedProvider = p;
+          changedModel = m;
+        }}
+      />,
+    );
+
+    expect(html).toContain("studio-controls");
+    expect(html).toContain("studio-provider-select");
+    expect(html).toContain("studio-model-select");
   });
 });

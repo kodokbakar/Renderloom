@@ -95,6 +95,12 @@ export function hydrateCandidateVersions(
   return candidate;
 }
 
+export interface UpdateSessionData {
+  name?: string;
+  providerId?: string;
+  modelId?: string;
+}
+
 export class SessionService {
   readonly baseDir: string;
   private readonly reservedSlugs = new Set<string>();
@@ -423,27 +429,106 @@ export class SessionService {
     };
   }
 
-  async renameSession(idOrSlug: string, newName: string): Promise<Session> {
-    const trimmed = (newName || "").trim();
-    if (!trimmed) {
-      throw new SessionError(
-        "INVALID_SESSION_NAME",
-        "Session name cannot be empty",
-      );
-    }
-    if (trimmed.length > 100) {
-      throw new SessionError(
-        "INVALID_SESSION_NAME",
-        "Session name exceeds maximum length of 100 characters",
-      );
-    }
-
+  async updateSession(
+    idOrSlug: string,
+    updates: UpdateSessionData,
+  ): Promise<Session> {
     const { dir, session } = await this.resolveSessionDir(idOrSlug);
-    session.name = trimmed;
-    session.updatedAt = new Date().toISOString();
+    let changed = false;
 
-    await atomicWriteJson(path.join(dir, "session.json"), session);
+    if (updates.name !== undefined) {
+      const trimmed = updates.name.trim();
+      if (!trimmed) {
+        throw new SessionError(
+          "INVALID_SESSION_NAME",
+          "Session name cannot be empty",
+        );
+      }
+      if (trimmed.length > 100) {
+        throw new SessionError(
+          "INVALID_SESSION_NAME",
+          "Session name exceeds maximum length of 100 characters",
+        );
+      }
+      session.name = trimmed;
+      changed = true;
+    }
+
+    if (updates.providerId !== undefined) {
+      const trimmed = updates.providerId.trim();
+      if (!trimmed) {
+        throw new SessionError(
+          "INVALID_SESSION_NAME",
+          "Provider ID cannot be empty",
+        );
+      }
+      session.providerId = trimmed;
+      changed = true;
+    }
+
+    if (updates.modelId !== undefined) {
+      const trimmed = updates.modelId.trim();
+      if (!trimmed) {
+        throw new SessionError(
+          "INVALID_SESSION_NAME",
+          "Model ID cannot be empty",
+        );
+      }
+      session.modelId = trimmed;
+      changed = true;
+    }
+
+    if (changed) {
+      session.updatedAt = new Date().toISOString();
+      await atomicWriteJson(path.join(dir, "session.json"), session);
+
+      if (updates.providerId !== undefined || updates.modelId !== undefined) {
+        const configPath = path.join(dir, "generation-config.json");
+        let generationConfig: GenerationConfig;
+        if (existsSync(configPath)) {
+          try {
+            generationConfig = JSON.parse(await readFile(configPath, "utf-8"));
+          } catch {
+            generationConfig = {
+              providerId: session.providerId,
+              modelId: session.modelId,
+              styleId: session.styleId,
+              candidateCount: 1,
+              width: session.dimensions?.width ?? 1024,
+              height: session.dimensions?.height ?? 1024,
+              outputFormat: "png",
+              createdAt: session.createdAt,
+            };
+          }
+        } else {
+          generationConfig = {
+            providerId: session.providerId,
+            modelId: session.modelId,
+            styleId: session.styleId,
+            candidateCount: 1,
+            width: session.dimensions?.width ?? 1024,
+            height: session.dimensions?.height ?? 1024,
+            outputFormat: "png",
+            createdAt: session.createdAt,
+          };
+        }
+
+        if (updates.providerId !== undefined) {
+          generationConfig.providerId = session.providerId;
+        }
+        if (updates.modelId !== undefined) {
+          generationConfig.modelId = session.modelId;
+        }
+
+        await atomicWriteJson(configPath, generationConfig);
+      }
+    }
+
     return session;
+  }
+
+  async renameSession(idOrSlug: string, newName: string): Promise<Session> {
+    return this.updateSession(idOrSlug, { name: newName });
   }
 
   async deleteSession(idOrSlug: string): Promise<void> {

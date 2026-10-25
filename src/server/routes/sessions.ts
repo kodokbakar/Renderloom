@@ -4,6 +4,7 @@ import {
   ArtifactParamsSchema,
   validateCreateSessionRequest,
   validateRenameSessionRequest,
+  validateUpdateSessionRequest,
 } from "../validation";
 
 export async function handleSessionRoute(
@@ -77,8 +78,8 @@ export async function handleSessionRoute(
       // 4. PATCH /api/sessions/:id
       if (req.method === "PATCH") {
         const body = await req.json();
-        const { name } = validateRenameSessionRequest(body);
-        const session = await service.renameSession(id, name);
+        const updates = validateUpdateSessionRequest(body);
+        const session = await service.updateSession(id, updates);
         return Response.json({ session });
       }
 

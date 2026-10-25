@@ -122,6 +122,38 @@ describe("Sessions HTTP API Endpoints", () => {
     expect(patchRes.status).toBe(200);
     const body = await patchRes.json();
     expect(body.session.name).toBe("New Name");
+
+    // Test updating providerId and modelId
+    const patchModelRes = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        providerId: "custom",
+        modelId: "llama-3.3-70b-versatile",
+      }),
+    });
+    expect(patchModelRes.status).toBe(200);
+    const modelBody = await patchModelRes.json();
+    expect(modelBody.session.providerId).toBe("custom");
+    expect(modelBody.session.modelId).toBe("llama-3.3-70b-versatile");
+
+    // Verify GET returns updated metadata and generationConfig
+    const getUpdatedRes = await fetch(`${baseUrl}/api/sessions/${session.id}`);
+    const getUpdatedBody = await getUpdatedRes.json();
+    expect(getUpdatedBody.session.providerId).toBe("custom");
+    expect(getUpdatedBody.session.modelId).toBe("llama-3.3-70b-versatile");
+    expect(getUpdatedBody.generationConfig.providerId).toBe("custom");
+    expect(getUpdatedBody.generationConfig.modelId).toBe(
+      "llama-3.3-70b-versatile",
+    );
+
+    // Test rejection of empty update body
+    const emptyPatchRes = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(emptyPatchRes.status).toBe(400);
   });
 
   test("DELETE /api/sessions/:id removes the session", async () => {

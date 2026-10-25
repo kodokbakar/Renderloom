@@ -12,6 +12,7 @@ export interface StudioControlsProps {
   styles?: StylePresetSummary[];
   isGenerating: boolean;
   onGenerate: (payload: GenerationRequest) => Promise<void>;
+  onModelChange?: (providerId: string, modelId: string) => void;
   className?: string;
 }
 
@@ -175,6 +176,7 @@ export function StudioControls({
   styles: customStyles = DEFAULT_STYLES,
   isGenerating,
   onGenerate,
+  onModelChange,
   className = "",
 }: StudioControlsProps) {
   const providers =
@@ -234,12 +236,40 @@ export function StudioControls({
     providers.find((p) => p.id === providerId) || providers[0];
   const availableModels = activeProvider?.models || [];
 
+  useEffect(() => {
+    const currentProvider =
+      generationConfig?.providerId ||
+      session.providerId ||
+      providers[0]?.id ||
+      "anthropic";
+    const currentModel =
+      generationConfig?.modelId ||
+      session.modelId ||
+      providers.find((p) => p.id === currentProvider)?.defaultModelId ||
+      "claude-3-5-sonnet";
+    setProviderId(currentProvider);
+    setModelId(currentModel);
+  }, [
+    session.providerId,
+    session.modelId,
+    generationConfig?.providerId,
+    generationConfig?.modelId,
+    providers,
+  ]);
+
   const handleProviderChange = (newProviderId: string) => {
     setProviderId(newProviderId);
     const p = providers.find((prov) => prov.id === newProviderId);
+    const newModelId = p?.defaultModelId || p?.models[0]?.id || "";
     if (p) {
-      setModelId(p.defaultModelId || p.models[0]?.id || "");
+      setModelId(newModelId);
     }
+    onModelChange?.(newProviderId, newModelId);
+  };
+
+  const handleModelChange = (newModelId: string) => {
+    setModelId(newModelId);
+    onModelChange?.(providerId, newModelId);
   };
 
   const handleAspectRatioChange = (ratio: AspectRatioPreset) => {
@@ -324,7 +354,7 @@ export function StudioControls({
                 className="control-select"
                 data-testid="studio-custom-model-input"
                 value={modelId}
-                onChange={(e) => setModelId(e.target.value)}
+                onChange={(e) => handleModelChange(e.target.value)}
                 disabled={isGenerating}
                 list="studio-custom-models"
                 placeholder="e.g. llama3"
@@ -343,7 +373,7 @@ export function StudioControls({
               className="control-select"
               data-testid="studio-model-select"
               value={modelId}
-              onChange={(e) => setModelId(e.target.value)}
+              onChange={(e) => handleModelChange(e.target.value)}
               disabled={isGenerating}
             >
               {availableModels.map((m) => (
