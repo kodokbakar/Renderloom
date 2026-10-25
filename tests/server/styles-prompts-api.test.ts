@@ -208,14 +208,14 @@ describe("Styles, Dimensions, and Prompts API", () => {
       expect(data.code).toBe("STYLE_NOT_FOUND");
     });
 
-    test("returns 400 when candidateCount exceeds maximum of 4", async () => {
+    test("returns 400 when candidateCount exceeds maximum of 10", async () => {
       const res = await fetch(`${baseUrl}/api/prompts/compose`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: "A poster",
           styleId: "bauhaus",
-          candidateCount: 8,
+          candidateCount: 11,
         }),
       });
       expect(res.status).toBe(400);
@@ -302,7 +302,7 @@ describe("Styles, Dimensions, and Prompts API", () => {
       expect(data.error).toContain("Unknown styleId");
     });
 
-    test("rejects request with candidateCount > 4", async () => {
+    test("rejects request with candidateCount > 10", async () => {
       const res = await fetch(`${baseUrl}/api/validate-generation`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -310,7 +310,7 @@ describe("Styles, Dimensions, and Prompts API", () => {
           sessionId: "sess-1",
           prompt: "A poster",
           styleId: "bauhaus",
-          candidateCount: 6,
+          candidateCount: 11,
           width: 1024,
           height: 1024,
           outputFormat: "png",
@@ -395,7 +395,7 @@ describe("Styles, Dimensions, and Prompts API", () => {
       expect(invalidRes.status).toBe(400);
     });
 
-    test("POST /api/prompts/compose validates candidateCount bounds (1 to 4)", async () => {
+    test("POST /api/prompts/compose validates candidateCount bounds (1 to 10)", async () => {
       // Lower boundary: 1
       const res1 = await fetch(`${baseUrl}/api/prompts/compose`, {
         method: "POST",
@@ -408,17 +408,17 @@ describe("Styles, Dimensions, and Prompts API", () => {
       });
       expect(res1.status).toBe(200);
 
-      // Upper boundary: 4
-      const res4 = await fetch(`${baseUrl}/api/prompts/compose`, {
+      // Upper boundary: 10
+      const res10 = await fetch(`${baseUrl}/api/prompts/compose`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: "Test candidate 4",
+          prompt: "Test candidate 10",
           styleId: "swiss",
-          candidateCount: 4,
+          candidateCount: 10,
         }),
       });
-      expect(res4.status).toBe(200);
+      expect(res10.status).toBe(200);
 
       // Below lower boundary: 0
       const res0 = await fetch(`${baseUrl}/api/prompts/compose`, {
@@ -432,17 +432,17 @@ describe("Styles, Dimensions, and Prompts API", () => {
       });
       expect(res0.status).toBe(400);
 
-      // Above upper boundary: 5
-      const res5 = await fetch(`${baseUrl}/api/prompts/compose`, {
+      // Above upper boundary: 11
+      const res11 = await fetch(`${baseUrl}/api/prompts/compose`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: "Test candidate 5",
+          prompt: "Test candidate 11",
           styleId: "swiss",
-          candidateCount: 5,
+          candidateCount: 11,
         }),
       });
-      expect(res5.status).toBe(400);
+      expect(res11.status).toBe(400);
     });
 
     test("GET /api/styles/:id safely rejects traversal or invalid characters", async () => {
