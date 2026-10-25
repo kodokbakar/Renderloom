@@ -30,6 +30,7 @@ export interface Session {
   activeBatchId?: string;
   lastBatchStatus?: string;
   lastBatchSummary?: BatchSummary;
+  storyMode?: boolean;
 }
 
 export interface SessionSummary {
@@ -73,6 +74,7 @@ export interface GenerationConfig {
   height: number;
   outputFormat: "png";
   createdAt: string;
+  storyMode?: boolean;
 }
 
 export interface SessionArtifacts {

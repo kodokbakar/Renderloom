@@ -11,6 +11,7 @@ export interface GenerationRequest {
   outputFormat: "png";
   providerId: string;
   modelId: string;
+  storyMode?: boolean;
 }
 
 export interface CreateSessionRequest {
@@ -22,6 +23,7 @@ export interface CreateSessionRequest {
   height: number;
   aspectRatio?: AspectRatioPreset;
   initialPrompt?: string;
+  storyMode?: boolean;
 }
 
 export interface ResolveDimensionsRequest {
@@ -37,4 +39,5 @@ export interface ComposePromptRequest {
   aspectRatio?: AspectRatioPreset;
   width?: number;
   height?: number;
+  storyMode?: boolean;
 }

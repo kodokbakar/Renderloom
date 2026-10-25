@@ -4,7 +4,12 @@ import {
   MIN_CANDIDATE_COUNT,
 } from "../domain/dimensions";
 import { ValidationError } from "../domain/errors";
-import type { ComposePromptOptions, ComposedPrompt } from "../domain/prompt";
+import {
+  type ComposePromptOptions,
+  type ComposedPrompt,
+  type StorySlideDefinition,
+  getStorySlideDefinition,
+} from "../domain/prompt";
 import { resolveDimensions } from "../styles/dimensions";
 import { StyleRegistry } from "../styles/registry";
 import { buildOutputContractInstructions } from "./contract";
@@ -13,6 +18,31 @@ import { buildTechnicalConstraints } from "./technical-constraints";
 
 export interface PromptComposerDependencies {
   styleRegistry?: StyleRegistry;
+}
+
+export function buildStoryModeInstructions(
+  slide: StorySlideDefinition,
+): string {
+  const directives =
+    slide.role === "hook"
+      ? "- Lead with high visual tension, captivating focal point, or a provocative statement.\n- Draw the viewer in immediately with clear thematic presence.\n- Establish typography and style foundation for the sequence."
+      : slide.role === "core"
+        ? `- Present detailed concepts, structured sections, data points, or transformation steps.\n- Deepen the visual narrative as part of the body (slide ${slide.index} of ${slide.totalSlides}).\n- Maintain visual coherence with the opening slide while advancing the message.`
+        : "- Provide resolution, impactful payoff, climax, or a definitive call to action.\n- Deliver the conclusion of the story sequence with maximum memorability.\n- Balance finality with emotional resonance.";
+
+  return `### STORY MODE: NARRATIVE ARC INSTRUCTIONS
+This composition is Slide ${slide.index} of ${slide.totalSlides} in a narrative visual sequence.
+Narrative Arc Phase: ${slide.roleName.toUpperCase()} (${slide.role})
+
+Narrative Objective:
+${slide.narrativeGoal}
+
+Design Directives for ${slide.roleName}:
+${directives}
+
+Visual Cohesion:
+- All slides in this sequence share the requested style preset, color harmony, and typographic rules.
+- Maintain seamless design language continuity across the narrative arc.`;
 }
 
 export async function composePrompt(
@@ -65,23 +95,38 @@ export async function composePrompt(
     options.basePromptOverride ??
     (await loadBasePrompt(options.customBasePromptPath));
 
+  const storyMode = Boolean(options.storyMode);
+  const storySlide = storyMode
+    ? (options.storySlide ?? getStorySlideDefinition(1, candidateCount))
+    : undefined;
+
   const technicalConstraints = buildTechnicalConstraints(dimensions);
-  const outputContract = buildOutputContractInstructions(candidateCount);
+  const outputContract = buildOutputContractInstructions(
+    candidateCount,
+    storySlide,
+  );
 
-  const systemPrompt = [
-    basePrompt,
-    technicalConstraints,
-    styleInstructions,
-    outputContract,
-  ].join("\n\n---\n\n");
+  const systemSections = [basePrompt, technicalConstraints, styleInstructions];
 
-  const userPrompt = `### USER DESIGN REQUEST
+  if (storySlide) {
+    systemSections.push(buildStoryModeInstructions(storySlide));
+  }
+
+  systemSections.push(outputContract);
+  const systemPrompt = systemSections.join("\n\n---\n\n");
+
+  let userPrompt = `### USER DESIGN REQUEST
 Target Dimensions: ${dimensions.width}px x ${dimensions.height}px (${dimensions.aspectRatio})
 Requested Style: ${stylePreset.name} (${stylePreset.id})
-Candidate Count: ${candidateCount}
+Candidate Count: ${candidateCount}`;
 
-User Instructions:
-${trimmedPrompt}`;
+  if (storySlide) {
+    userPrompt += `\nStory Mode: Active (${storySlide.roleName} - Slide ${storySlide.index}/${storySlide.totalSlides})`;
+    userPrompt += `\nSlide Narrative Role: ${storySlide.roleName} (${storySlide.role})`;
+    userPrompt += `\nNarrative Goal: ${storySlide.narrativeGoal}`;
+  }
+
+  userPrompt += `\n\nUser Instructions:\n${trimmedPrompt}`;
 
   const effectivePrompt = `${systemPrompt}\n\n===\n\n${userPrompt}`;
 
@@ -93,6 +138,8 @@ ${trimmedPrompt}`;
       styleId: options.styleId,
       candidateCount,
       dimensions,
+      storyMode,
+      storySlide,
     },
   };
 }

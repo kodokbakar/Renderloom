@@ -1,3 +1,4 @@
+import type { StoryArcRole } from "./prompt";
 import type { Version } from "./version";
 
 export interface RevisionError {
@@ -41,6 +42,7 @@ export interface Candidate {
   state: CandidateState;
   label?: string;
   rationale?: string;
+  storyArcRole?: StoryArcRole;
   currentVersionId?: string;
   versions?: Version[];
   lastRevisionError?: RevisionError;

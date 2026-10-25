@@ -23,6 +23,7 @@ export interface StartGenerationOptions {
   concurrency?: number;
   maxRetries?: number;
   retryBaseDelayMs?: number;
+  storyMode?: boolean;
 }
 
 export interface CandidateJobRecord {

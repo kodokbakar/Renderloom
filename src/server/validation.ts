@@ -53,6 +53,7 @@ export const GenerationRequestSchema = z
     outputFormat: z.literal("png"),
     providerId: z.string().min(1, "providerId is required"),
     modelId: z.string().min(1, "modelId is required"),
+    storyMode: z.boolean().optional(),
   })
   .refine((data) => data.width * data.height <= MAX_PIXELS, {
     message: `Total pixels (${MAX_PIXELS}) exceeded`,
@@ -68,6 +69,7 @@ export const CreateSessionRequestSchema = z
     height: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION),
     aspectRatio: AspectRatioEnum.optional(),
     initialPrompt: z.string().max(MAX_PROMPT_LENGTH).optional(),
+    storyMode: z.boolean().optional(),
   })
   .refine((data) => data.width * data.height <= MAX_PIXELS, {
     message: `Total pixels (${MAX_PIXELS}) exceeded`,
@@ -156,6 +158,7 @@ export const ComposePromptSchema = z
     aspectRatio: AspectRatioEnum.optional(),
     width: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION).optional(),
     height: z.number().int().min(MIN_DIMENSION).max(MAX_DIMENSION).optional(),
+    storyMode: z.boolean().optional(),
   })
   .refine(
     (data) => {
