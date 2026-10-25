@@ -144,10 +144,7 @@ export function CandidateCard({
                     : `Retry ${displayName}`
                 }
               >
-                <RefreshCwIcon
-                  size={12}
-                  className={isRetrying ? "spin" : ""}
-                />{" "}
+                <RefreshCwIcon size={12} className={isRetrying ? "spin" : ""} />{" "}
                 {isRetrying ? "Retrying..." : "Retry"}
               </button>
             )}
@@ -169,10 +166,7 @@ export function CandidateCard({
                     : `Retry ${displayName}`
                 }
               >
-                <RefreshCwIcon
-                  size={12}
-                  className={isRetrying ? "spin" : ""}
-                />{" "}
+                <RefreshCwIcon size={12} className={isRetrying ? "spin" : ""} />{" "}
                 {isRetrying ? "Retrying..." : "Retry"}
               </button>
             )}

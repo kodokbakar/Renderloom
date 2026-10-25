@@ -63,10 +63,7 @@ export function ErrorCard({
                 : `Retry candidate ${candidate.label || candidate.id}`
             }
           >
-            <RefreshCwIcon
-              size={14}
-              className={isRetrying ? "spin" : ""}
-            />
+            <RefreshCwIcon size={14} className={isRetrying ? "spin" : ""} />
             <span>{isRetrying ? "Retrying..." : "Retry Candidate"}</span>
           </button>
         </div>

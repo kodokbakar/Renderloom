@@ -156,7 +156,7 @@ export async function composeRevisionPrompt(
     "- Preserve explicit flex container properties (display: 'flex', flexDirection, alignItems, justifyContent, gap, padding).",
     "",
     "Level 3: Styling & Aesthetic Adjustments",
-    `- Apply requested modifications to color palette, backgrounds, typography sizing, font weights, borders, or decorative accents.`,
+    "- Apply requested modifications to color palette, backgrounds, typography sizing, font weights, borders, or decorative accents.",
     `- Maintain consistency with the active style preset (${stylePreset.name}) and all technical constraints.`,
     "",
     "Level 4: Preservation of Unmodified Elements",

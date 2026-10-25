@@ -33,7 +33,9 @@ describe("composeRevisionPrompt", () => {
     expect(composed.userPrompt).toContain(
       "Change background color to deep navy and increase title font size to 64px",
     );
-    expect(composed.userPrompt).toContain("Level 1: Content & Text Replacement");
+    expect(composed.userPrompt).toContain(
+      "Level 1: Content & Text Replacement",
+    );
     expect(composed.userPrompt).toContain(
       "Level 2: Structural & Layout Restructuring",
     );
@@ -58,7 +60,9 @@ describe("composeRevisionPrompt", () => {
     expect(composed.userPrompt).toContain(
       "REVISION DIRECTIVE HIERARCHY (Apply in strict priority order):",
     );
-    expect(composed.userPrompt).toContain("Level 1: Content & Text Replacement");
+    expect(composed.userPrompt).toContain(
+      "Level 1: Content & Text Replacement",
+    );
     expect(composed.userPrompt).toContain(
       "Level 2: Structural & Layout Restructuring",
     );
