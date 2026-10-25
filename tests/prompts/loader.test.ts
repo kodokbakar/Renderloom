@@ -21,6 +21,13 @@ describe("Base Prompt Loader & Immutability", () => {
     expect(prompt).toBe(DEFAULT_BASE_PROMPT);
   });
 
+  test("DEFAULT_BASE_PROMPT includes layout centering and overflow constraints", () => {
+    expect(DEFAULT_BASE_PROMPT).toContain("boxSizing: 'border-box'");
+    expect(DEFAULT_BASE_PROMPT).toContain("alignItems: 'center'");
+    expect(DEFAULT_BASE_PROMPT).toContain("justifyContent: 'center'");
+    expect(DEFAULT_BASE_PROMPT).toContain("wordBreak: 'break-word'");
+  });
+
   test("loads from custom path when specified", async () => {
     const tempDir = path.join(
       process.cwd(),
