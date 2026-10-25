@@ -2,6 +2,7 @@
   "name": "renderloom",
   "version": "0.1.0",
   "description": "Local-first, code-first AI image design studio",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
   "scripts": {

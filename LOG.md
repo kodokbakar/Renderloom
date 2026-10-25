@@ -269,3 +269,18 @@
   - Updated `src/app/App.tsx` to track active model/provider and explicitly forward `providerId` and `modelId` in `POST /api/sessions/:id/candidates/:candidateId/revisions`.
   - Added unit and integration tests in `tests/server/sessions-api.test.ts`, `tests/server/revisions-api.test.ts`, and `tests/app/app-revision-integration.test.tsx`.
 - Verified: `bun test` (723 passing tests across 93 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite production build).
+
+### Governance and GPL-3.0 License Transition [governance-and-gpl]
+- Transitioned project license from MIT to GNU General Public License v3.0 (`GPL-3.0-or-later`):
+  - Updated `LICENSE` to the standard GNU General Public License Version 3 (29 June 2007) with Renderloom copyright notice (`Copyright (C) 2026 Renderloom Contributors`).
+  - Added `"license": "GPL-3.0-or-later"` to `package.json`.
+  - Updated `README.md` License section to cite GNU General Public License v3.0 (GPL-3.0-or-later).
+  - Maintained upstream dependency licenses unchanged in `THIRD_PARTY_LICENSES.md` (all remain under their respective permissive MIT, Apache-2.0, and SIL OFL 1.1 licenses).
+- Established open-source community governance and developer guidance:
+  - Added `CONTRIBUTING.md`: Detailed developer guide covering Bun environment prerequisites, setup, workflow commands (`dev`, `build`, `test`, `lint`, `format`, `typecheck`), AST sandboxing rules (element allowlist, flexbox constraints, literal styles, resource bounds), BYOK in-memory credential model, local session persistence and immutable artifacts, branch naming (`feat/...`, `fix/...`), conventional commit messages, PR guidelines, and GPL-3.0 contribution terms.
+  - Added `CODE_OF_CONDUCT.md`: Adopted Contributor Covenant version 2.1 terms, reporting channel (`conduct@renderloom.dev`), and four-tier enforcement guidelines.
+  - Updated `README.md` with a `## Contributing` section linking directly to `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
+- Updated test suites:
+  - Updated `tests/docs/onboarding.test.ts` to require `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`, verify GPLv3 license terms, package.json license field, and key governance document sections.
+  - Updated `tests/docs/edge-cases.test.ts` to validate relative markdown links across `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
+- Verified: `bun test` (all passing tests), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite build).
