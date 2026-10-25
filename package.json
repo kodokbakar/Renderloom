@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",
+    "@twemoji/svg": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "satori": "0.63.2",
