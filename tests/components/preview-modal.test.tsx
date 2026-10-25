@@ -146,4 +146,29 @@ describe("PreviewModal", () => {
     expect(html).not.toContain("/home/dokbakar/font.ttf");
     expect(html).toContain("Image unavailable");
   });
+
+  test("renders ErrorCard in loading state when isRetrying is true", () => {
+    const failedCand: Candidate = {
+      ...mockCandidate,
+      state: "failed",
+      errorCode: "RENDER_FAILED",
+      errorMessage: "Render timeout",
+    };
+
+    const html = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={failedCand}
+        session={mockSession}
+        onClose={() => {}}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain('data-testid="error-card-retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+  });
 });

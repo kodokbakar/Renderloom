@@ -614,9 +614,15 @@ body {
   cursor: pointer;
 }
 
-.btn-card-retry:hover {
+.btn-card-retry:hover:not(:disabled) {
   background-color: var(--color-danger);
   color: #fff;
+}
+
+.btn-card-retry:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .candidate-card-footer {
@@ -1116,8 +1122,14 @@ body {
   transition: opacity 0.15s ease;
 }
 
-.btn-retry-action:hover {
+.btn-retry-action:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+.btn-retry-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Utilities */

@@ -141,4 +141,31 @@ describe("CandidateGallery", () => {
     expect(html).toContain('data-candidate-id="c-success"');
     expect(html).toContain('data-candidate-id="c-fail"');
   });
+
+  test("passes isRetrying state to targeted candidate card", () => {
+    const failedCandidates: Candidate[] = [
+      {
+        id: "c-retry-1",
+        sessionId: "s-1",
+        index: 0,
+        state: "failed",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <CandidateGallery
+        candidates={failedCandidates}
+        sessionId="s-1"
+        onSelectCandidate={() => {}}
+        onRetryCandidate={() => {}}
+        retryingCandidateId="c-retry-1"
+      />,
+    );
+
+    expect(html).toContain('data-testid="retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+  });
 });

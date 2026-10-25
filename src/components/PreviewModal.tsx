@@ -45,6 +45,7 @@ export interface PreviewModalProps {
   ) => Promise<void> | void;
   isRevising?: boolean;
   isRestoring?: boolean;
+  isRetrying?: boolean;
 }
 
 export function PreviewModal({
@@ -65,6 +66,7 @@ export function PreviewModal({
   onRestoreVersion,
   isRevising = false,
   isRestoring = false,
+  isRetrying = false,
 }: PreviewModalProps) {
   const [activeTab, setActiveTab] = useState<PreviewTab>("preview");
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(
@@ -317,7 +319,11 @@ export function PreviewModal({
                 isRestoring={isRestoring}
               />
             )}
-            <ErrorCard candidate={candidate} onRetry={onRetry} />
+            <ErrorCard
+              candidate={candidate}
+              onRetry={onRetry}
+              isRetrying={isRetrying}
+            />
             <DownloadActions sessionId={sessionId} candidate={candidate} />
             <MetadataViewer candidate={candidate} session={session} />
           </aside>

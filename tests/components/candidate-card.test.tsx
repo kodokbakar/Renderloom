@@ -76,7 +76,31 @@ describe("CandidateCard", () => {
     );
     expect(html).not.toContain("sk-secret12345678901234");
     expect(html).toContain("btn-card-retry");
+    expect(html).toContain('data-testid="retry-button"');
     expect(html).toContain("Retry");
+  });
+
+  test("renders retry button with loading state when isRetrying is true", () => {
+    const failedCandidate: Candidate = {
+      ...baseCandidate,
+      id: "c-fail-retrying",
+      state: "failed",
+      errorMessage: "Render timeout",
+    };
+
+    const html = renderToStaticMarkup(
+      <CandidateCard
+        candidate={failedCandidate}
+        sessionId="sess-abc"
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain('data-testid="retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+    expect(html).toContain("spin");
   });
 
   test("renders in-progress states with progress label", () => {
