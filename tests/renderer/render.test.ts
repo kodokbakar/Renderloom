@@ -14,6 +14,7 @@ import {
   clearEmojiCache,
   loadLocalEmoji,
   render,
+  renderVNode,
 } from "../../src/renderer/render";
 
 const PNG_MAGIC_HEX = "89504e470d0a1a0a";
@@ -461,6 +462,78 @@ describe("Core Renderer Engine", () => {
       const [f1] = await getDefaultFontConfigs();
       const [f2] = await getDefaultFontConfigs();
       expect(f1?.data).toBe(f2?.data);
+    });
+
+    test("automatically appends Noto Sans Symbols when custom fonts are provided without it", async () => {
+      const roboto = await getDefaultFontConfig();
+      const symbolFont = await getSymbolFontConfig();
+      const jsx = `
+        <div style={{ display: "flex", width: 400, height: 100 }}>
+          <span style={{ fontSize: 24 }}>→ ★ ✓ ✦ ⚡</span>
+        </div>
+      `;
+
+      // Custom font list without Noto Sans Symbols: should auto-append fallback font
+      const resultWithFallback = await render(jsx, {
+        width: 400,
+        height: 100,
+        fonts: [roboto],
+      });
+      expect(resultWithFallback.svg.includes("M1 2.6L6.1 2.6")).toBe(false);
+      expect(resultWithFallback.svg).toContain("<path");
+      expect(Buffer.isBuffer(resultWithFallback.png)).toBe(true);
+
+      // Custom font list already containing Noto Sans Symbols: should preserve and not error
+      const resultExplicit = await render(jsx, {
+        width: 400,
+        height: 100,
+        fonts: [roboto, symbolFont],
+      });
+      expect(resultExplicit.svg.includes("M1 2.6L6.1 2.6")).toBe(false);
+      expect(resultExplicit.svg).toContain("<path");
+      expect(Buffer.isBuffer(resultExplicit.png)).toBe(true);
+    });
+
+    test("renders flag emojis and emojis with variation selectors (🇺🇸, ❤️, ⚡️)", async () => {
+      const jsx = `
+        <div style={{ display: "flex", width: 400, height: 100, backgroundColor: "#ffffff" }}>
+          <span style={{ fontSize: 28 }}>🇺🇸 ❤️ ⚡️</span>
+        </div>
+      `;
+
+      const result = await render(jsx, { width: 400, height: 100 });
+      expect(result.svg).toContain("<image");
+      expect(result.svg).toContain("data:image/svg+xml;base64,");
+      expect(Buffer.isBuffer(result.png)).toBe(true);
+      const dims = readPngDimensions(result.png);
+      expect(dims.width).toBe(400);
+      expect(dims.height).toBe(100);
+    });
+
+    test("renders VNodes directly with symbol and emoji support", async () => {
+      const result = await renderVNode(
+        {
+          type: "div",
+          props: {
+            style: { display: "flex", width: 300, height: 100 },
+            children: "★ 🚀",
+          },
+        },
+        { width: 300, height: 100 },
+      );
+
+      expect(result.svg).toContain("<path");
+      expect(result.svg).toContain("<image");
+      expect(result.svg.includes("M1 2.6L6.1 2.6")).toBe(false);
+      expect(Buffer.isBuffer(result.png)).toBe(true);
+      expect(result.width).toBe(300);
+      expect(result.height).toBe(100);
+    });
+
+    test("loadLocalEmoji handles empty strings and non-emoji inputs cleanly", async () => {
+      expect(await loadLocalEmoji("")).toBeUndefined();
+      expect(await loadLocalEmoji("\0")).toBeUndefined();
+      expect(await loadLocalEmoji("non-emoji-string")).toBeUndefined();
     });
   });
 });
