@@ -282,4 +282,160 @@ describe("composeRevisionPrompt", () => {
     expect(composed.userPrompt).toContain(specialPrompt);
     expect(composed.effectivePrompt).toContain(specialPrompt);
   });
+
+  test("preserves 4-level directive hierarchy with empty conversationMessages array", async () => {
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-001",
+      currentJsx: validJsx,
+      revisionPrompt: "Update header font to monospace",
+      styleId: "swiss",
+      conversationMessages: [],
+    });
+
+    expect(composed.userPrompt).not.toContain(
+      "### RELEVANT CONVERSATION CONTEXT:",
+    );
+    expect(composed.userPrompt).toContain(
+      "### REVISION DIRECTIVE HIERARCHY (Apply in strict priority order):",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 1: Content & Text Replacement",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 2: Structural & Layout Restructuring",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 3: Styling & Aesthetic Adjustments",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 4: Preservation of Unmodified Elements",
+    );
+  });
+
+  test("preserves 4-level directive hierarchy with mixed conversation messages across candidate IDs", async () => {
+    const conversationMessages: ConversationMessage[] = [
+      {
+        id: "msg-target",
+        role: "user",
+        content: "Target candidate initial tweak",
+        timestamp: "2026-10-24T10:00:00.000Z",
+        candidateId: "design-target",
+      },
+      {
+        id: "msg-other",
+        role: "user",
+        content: "Other candidate change",
+        timestamp: "2026-10-24T10:01:00.000Z",
+        candidateId: "design-other",
+      },
+      {
+        id: "msg-global",
+        role: "user",
+        content: "Global session requirement",
+        timestamp: "2026-10-24T10:02:00.000Z",
+      },
+    ];
+
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-target",
+      currentJsx: validJsx,
+      revisionPrompt: "Refine layout alignment",
+      styleId: "swiss",
+      conversationMessages,
+    });
+
+    expect(composed.userPrompt).toContain("Target candidate initial tweak");
+    expect(composed.userPrompt).toContain("Global session requirement");
+    expect(composed.userPrompt).not.toContain("Other candidate change");
+
+    const contextIdx = composed.userPrompt.indexOf(
+      "### RELEVANT CONVERSATION CONTEXT:",
+    );
+    const hierarchyIdx = composed.userPrompt.indexOf(
+      "### REVISION DIRECTIVE HIERARCHY (Apply in strict priority order):",
+    );
+    const instructionsIdx = composed.userPrompt.indexOf(
+      "### REVISION INSTRUCTIONS:",
+    );
+
+    expect(contextIdx).toBeGreaterThan(-1);
+    expect(hierarchyIdx).toBeGreaterThan(contextIdx);
+    expect(instructionsIdx).toBeGreaterThan(hierarchyIdx);
+  });
+
+  test("enforces strict sequential priority ordering of all 4 hierarchy levels", async () => {
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-hierarchy-seq",
+      currentJsx: validJsx,
+      revisionPrompt:
+        "Change title text, reorganize containers, and update colors",
+      styleId: "minimal",
+    });
+
+    const prompt = composed.userPrompt;
+    const l1Idx = prompt.indexOf("Level 1: Content & Text Replacement");
+    const l2Idx = prompt.indexOf("Level 2: Structural & Layout Restructuring");
+    const l3Idx = prompt.indexOf("Level 3: Styling & Aesthetic Adjustments");
+    const l4Idx = prompt.indexOf(
+      "Level 4: Preservation of Unmodified Elements",
+    );
+    const instrIdx = prompt.indexOf("### REVISION INSTRUCTIONS:");
+
+    expect(l1Idx).toBeGreaterThan(-1);
+    expect(l2Idx).toBeGreaterThan(l1Idx);
+    expect(l3Idx).toBeGreaterThan(l2Idx);
+    expect(l4Idx).toBeGreaterThan(l3Idx);
+    expect(instrIdx).toBeGreaterThan(l4Idx);
+  });
+
+  test("handles boundary revision prompt at exactly MAX_PROMPT_LENGTH while retaining full hierarchy", async () => {
+    const exactLengthPrompt = "X".repeat(MAX_PROMPT_LENGTH);
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-boundary",
+      currentJsx: validJsx,
+      revisionPrompt: exactLengthPrompt,
+      styleId: "swiss",
+    });
+
+    expect(composed.userPrompt).toContain(
+      "### REVISION DIRECTIVE HIERARCHY (Apply in strict priority order):",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 1: Content & Text Replacement",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 2: Structural & Layout Restructuring",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 3: Styling & Aesthetic Adjustments",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 4: Preservation of Unmodified Elements",
+    );
+    expect(composed.userPrompt).toContain(exactLengthPrompt);
+  });
+
+  test("maintains 4-level hierarchy and correct dimensions with custom aspect ratio", async () => {
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-aspect",
+      currentJsx: validJsx,
+      revisionPrompt: "Scale banner layout to 16:9",
+      styleId: "swiss",
+      width: 1920,
+      height: 1080,
+      aspectRatio: "16:9",
+    });
+
+    expect(composed.systemPrompt).toContain("1920px width by 1080px height");
+    expect(composed.userPrompt).toContain("1920px x 1080px (16:9)");
+    expect(composed.userPrompt).toContain(
+      "### REVISION DIRECTIVE HIERARCHY (Apply in strict priority order):",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 1: Content & Text Replacement",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 4: Preservation of Unmodified Elements",
+    );
+  });
 });

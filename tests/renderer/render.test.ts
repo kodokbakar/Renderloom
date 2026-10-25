@@ -82,6 +82,40 @@ describe("Core Renderer Engine", () => {
     expect(result.png.length).toBeGreaterThan(100);
   });
 
+  test("renders deeply nested heading hierarchy with complex styling to valid SVG and PNG", async () => {
+    const jsx = `
+      <div style={{ display: "flex", flexDirection: "column", width: 800, height: 600, backgroundColor: "#0f172a", padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h1 style={{ fontSize: 36, color: "#f8fafc", margin: 0, letterSpacing: "-0.01em" }}>
+            Hero <span style={{ color: "#38bdf8" }}>Title</span>
+          </h1>
+          <h2 style={{ fontSize: 20, color: "#94a3b8", margin: 0 }}>Subtitle</h2>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
+          <h3 style={{ fontSize: 18, color: "#cbd5e1" }}>Nested Section</h3>
+          <div style={{ display: "flex", gap: 16 }}>
+            <h4 style={{ fontSize: 16, color: "#e2e8f0" }}>Item A</h4>
+            <h5 style={{ fontSize: 14, color: "#64748b" }}>Item B</h5>
+            <h6 style={{ fontSize: 12, color: "#475569" }}>Item C</h6>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const result = await render(jsx, { width: 800, height: 600 });
+    expect(result.width).toBe(800);
+    expect(result.height).toBe(600);
+    expect(result.svg).toContain("<svg");
+    expect(result.svg).toContain('width="800"');
+    expect(result.svg).toContain('height="600"');
+    expect(result.svg).toContain("#38bdf8");
+    expect(result.svg).toContain("#0f172a");
+    expect(Buffer.isBuffer(result.png)).toBe(true);
+    const dims = readPngDimensions(result.png);
+    expect(dims.width).toBe(800);
+    expect(dims.height).toBe(600);
+  });
+
   test("rejects invalid dimensions", async () => {
     const jsx = `<div style={{ display: "flex" }}>Hello</div>`;
 

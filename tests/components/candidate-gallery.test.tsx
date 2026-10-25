@@ -168,4 +168,95 @@ describe("CandidateGallery", () => {
     expect(html).toContain("disabled");
     expect(html).toContain("Retrying...");
   });
+
+  test("selectively disables only the targeted candidate card when retryingCandidateId is specified", () => {
+    const candidates: Candidate[] = [
+      {
+        id: "c-active-retry",
+        sessionId: "s-1",
+        index: 0,
+        label: "Card 1",
+        state: "failed",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "c-idle-fail",
+        sessionId: "s-1",
+        index: 1,
+        label: "Card 2",
+        state: "failed",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "c-ready",
+        sessionId: "s-1",
+        index: 2,
+        label: "Card 3",
+        state: "completed",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <CandidateGallery
+        candidates={candidates}
+        sessionId="s-1"
+        onSelectCandidate={() => {}}
+        onRetryCandidate={() => {}}
+        retryingCandidateId="c-active-retry"
+      />,
+    );
+
+    // Card 1 is retrying
+    expect(html).toContain('aria-label="Retrying Card 1"');
+    expect(html).toContain("Retrying...");
+
+    // Card 2 is failed but not currently retrying
+    expect(html).toContain('aria-label="Retry Card 2"');
+
+    // Card 3 is ready: no retry button
+    expect(html).not.toContain('aria-label="Retry Card 3"');
+    expect(html).not.toContain('aria-label="Retrying Card 3"');
+  });
+
+  test("disables all failed and cancelled retry buttons when global isRetrying is true", () => {
+    const candidates: Candidate[] = [
+      {
+        id: "c-1",
+        sessionId: "s-1",
+        index: 0,
+        label: "Card 1",
+        state: "failed",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "c-2",
+        sessionId: "s-1",
+        index: 1,
+        label: "Card 2",
+        state: "cancelled",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <CandidateGallery
+        candidates={candidates}
+        sessionId="s-1"
+        onSelectCandidate={() => {}}
+        onRetryCandidate={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain('aria-label="Retrying Card 1"');
+    expect(html).toContain('aria-label="Retrying Card 2"');
+    expect(html).not.toContain('aria-label="Retry Card 1"');
+    expect(html).not.toContain('aria-label="Retry Card 2"');
+  });
 });

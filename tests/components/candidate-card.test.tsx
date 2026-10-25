@@ -145,6 +145,55 @@ describe("CandidateCard", () => {
     expect(html).toContain('data-candidate-state="cancelled"');
     expect(html).toContain("Generation cancelled");
     expect(html).toContain("btn-card-retry");
+    expect(html).toContain('data-testid="retry-button"');
+    expect(html).toContain("Retry");
+    expect(html).not.toContain("disabled");
+  });
+
+  test("renders retry button in loading state for cancelled candidate when isRetrying is true", () => {
+    const cancelledCand: Candidate = {
+      ...baseCandidate,
+      id: "c-cancel-retrying",
+      label: "Hero Slide",
+      state: "cancelled",
+    };
+    const html = renderToStaticMarkup(
+      <CandidateCard
+        candidate={cancelledCand}
+        sessionId="sess-abc"
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain('data-testid="retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+    expect(html).toContain("spin");
+    expect(html).toContain('aria-label="Retrying Hero Slide"');
+  });
+
+  test("does not render retry button for completed or validating candidate even if isRetrying is true", () => {
+    const completedCand: Candidate = {
+      ...baseCandidate,
+      state: "completed",
+      artifacts: {
+        sourcePath: "/path/to.jsx",
+        svgPath: "/path/to.svg",
+        pngPath: "/path/to.png",
+      },
+    };
+    const html = renderToStaticMarkup(
+      <CandidateCard
+        candidate={completedCand}
+        sessionId="sess-abc"
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).not.toContain('data-testid="retry-button"');
+    expect(html).not.toContain("btn-card-retry");
   });
 
   test("renders fallback when completed candidate is missing image artifacts", () => {

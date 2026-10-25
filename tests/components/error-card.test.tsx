@@ -78,4 +78,44 @@ describe("ErrorCard", () => {
     expect(html).toContain("Candidate Cancelled");
     expect(html).toContain("Generation was cancelled by the user.");
   });
+
+  test("renders retry button in loading state for cancelled candidate when isRetrying is true", () => {
+    const cancelledCand: Candidate = {
+      ...baseCandidate,
+      id: "c-cancel-01",
+      label: "Poster Layout",
+      state: "cancelled",
+    };
+
+    const html = renderToStaticMarkup(
+      <ErrorCard
+        candidate={cancelledCand}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain('data-testid="error-card-retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+    expect(html).toContain("spin");
+    expect(html).toContain('aria-label="Retrying candidate Poster Layout"');
+  });
+
+  test("returns empty output when candidate is not in failed or cancelled state", () => {
+    const completedCand: Candidate = {
+      ...baseCandidate,
+      state: "completed",
+    };
+
+    const html = renderToStaticMarkup(
+      <ErrorCard
+        candidate={completedCand}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toBe("");
+  });
 });

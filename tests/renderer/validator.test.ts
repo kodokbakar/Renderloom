@@ -225,6 +225,22 @@ describe("Restricted JSX Validator", () => {
       );
     });
 
+    test("rejects invalid heading-like elements such as h7, heading, header", () => {
+      const invalidHeadings = [
+        "<div><h7>Invalid heading level</h7></div>",
+        "<div><heading>Generic heading</heading></div>",
+        "<div><header>Semantic header</header></div>",
+      ];
+      for (const code of invalidHeadings) {
+        expect(() => validateJsx(code)).toThrow(RenderError);
+        try {
+          validateJsx(code);
+        } catch (err) {
+          expect((err as RenderError).code).toBe("UNSUPPORTED_SYNTAX");
+        }
+      }
+    });
+
     test("rejects dynamic arithmetic expressions in children", () => {
       const code = "<div>{1 + 1}</div>";
       try {
@@ -407,6 +423,29 @@ describe("Restricted JSX Validator", () => {
           <h4>Heading 4</h4>
           <h5>Heading 5</h5>
           <h6>Heading 6</h6>
+        </div>
+      `;
+      const validated = validateJsx(code);
+      expect(validated.rootElement).toBeDefined();
+    });
+
+    test("accepts deeply nested headings with rich styles and mixed inline spans", () => {
+      const code = `
+        <div style={{ display: "flex", flexDirection: "column", padding: 32 }}>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <h1 style={{ fontSize: 40, letterSpacing: "-0.02em", textTransform: "uppercase", color: "#111827" }}>
+              Main Title <span style={{ color: "#ef4444" }}>Accent</span>
+            </h1>
+          </div>
+          <div style={{ display: "flex", gap: 16 }}>
+            <h2 style={{ fontSize: 28, lineHeight: 1.2, margin: 0 }}>Section 2</h2>
+            <h3 style={{ fontSize: 22, opacity: 0.9 }}>Subsection 3</h3>
+          </div>
+          <div style={{ display: "flex" }}>
+            <h4 style={{ fontSize: 18, borderBottom: "1px solid #e5e7eb" }}>Level 4</h4>
+            <h5 style={{ fontSize: 14, textTransform: "capitalize" }}>Level 5</h5>
+            <h6 style={{ fontSize: 12, color: "#6b7280" }}>Level 6</h6>
+          </div>
         </div>
       `;
       const validated = validateJsx(code);
