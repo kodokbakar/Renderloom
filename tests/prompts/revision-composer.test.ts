@@ -33,8 +33,47 @@ describe("composeRevisionPrompt", () => {
     expect(composed.userPrompt).toContain(
       "Change background color to deep navy and increase title font size to 64px",
     );
+    expect(composed.userPrompt).toContain("Level 1: Content & Text Replacement");
+    expect(composed.userPrompt).toContain(
+      "Level 2: Structural & Layout Restructuring",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 3: Styling & Aesthetic Adjustments",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 4: Preservation of Unmodified Elements",
+    );
     expect(composed.metadata.candidateId).toBe("design-001");
     expect(composed.metadata.parentVersionId).toBe("v001");
+  });
+
+  test("enforces 4-level directive hierarchy for revision prompt composition", async () => {
+    const composed = await composeRevisionPrompt({
+      candidateId: "design-hierarchy-01",
+      currentJsx: validJsx,
+      revisionPrompt: "Update header text and change accent color to orange",
+      styleId: "bauhaus",
+    });
+
+    expect(composed.userPrompt).toContain(
+      "REVISION DIRECTIVE HIERARCHY (Apply in strict priority order):",
+    );
+    expect(composed.userPrompt).toContain("Level 1: Content & Text Replacement");
+    expect(composed.userPrompt).toContain(
+      "Level 2: Structural & Layout Restructuring",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 3: Styling & Aesthetic Adjustments",
+    );
+    expect(composed.userPrompt).toContain(
+      "Level 4: Preservation of Unmodified Elements",
+    );
+    expect(composed.userPrompt).toContain(
+      "Preserve explicit flex container properties",
+    );
+    expect(composed.userPrompt).toContain(
+      "Strictly preserve all existing layout structures",
+    );
   });
 
   test("includes bounded conversation context filtered by candidate", async () => {
