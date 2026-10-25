@@ -284,3 +284,28 @@
   - Updated `tests/docs/onboarding.test.ts` to require `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`, verify GPLv3 license terms, package.json license field, and key governance document sections.
   - Updated `tests/docs/edge-cases.test.ts` to validate relative markdown links across `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
 - Verified: `bun test` (all passing tests), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run format`, `bun run build` (clean Vite build).
+
+### Symbol and Emoji Support [symbol-and-emoji-support]
+- Eliminated `.notdef` tofu glyph boxes on Unicode symbols and emojis across Satori and Resvg:
+  - Bundled SIL Open Font License 1.1 `NotoSansSymbols-Regular.ttf` (~222KB) and `LICENSE-NotoSansSymbols.txt` under `src/renderer/fonts/`.
+  - Added `@twemoji/svg` (^15.0.0, MIT) dependency for local Twemoji SVG emoji assets.
+  - Updated `src/renderer/fonts.ts`:
+    - Added `SYMBOL_FONT_PATH`, `getSymbolFontConfig()`, and `getDefaultFontConfigs()`.
+    - Maintained `getDefaultFontConfig()` returning Roboto for backward compatibility.
+    - Updated `loadBundledFont()` to use in-memory `Map<string, ArrayBuffer>` cache cleared via `clearFontCache()`.
+  - Updated `src/renderer/render.ts`:
+    - Automatically chains `Noto Sans Symbols` fallback font in Satori when using default or custom fonts.
+    - Implemented `loadLocalEmoji(segment)` resolving emojis to local Twemoji SVGs with hex-codepoint format validation to strictly reject path traversal attacks.
+    - Added in-memory `Map<string, string>` data URI cache cleared via `clearEmojiCache()`.
+    - Wired `loadAdditionalAsset` hook in Satori for `languageCode === "emoji"`.
+  - Documented bundled fonts and `@twemoji/svg` runtime dependency in `THIRD_PARTY_LICENSES.md`.
+  - Added compliance checks in `tests/security/license-review.test.ts` verifying Noto Sans Symbols binary and license file.
+  - Added automated test suites in `tests/renderer/render.test.ts`:
+    - Unicode symbols (`→`, `←`, `★`, `✓`, `✦`, `⚡`) render without `.notdef` tofu glyph paths (`M1 2.6L6.1 2.6`).
+    - Standard emojis (`🚀`, `✨`, `🔥`, `💡`) render as inline SVG `<image` tags and rasterize to PNG.
+    - Compound emojis with ZWJ and modifiers (`👨‍💻`, `👍🏽`).
+    - Mixed text, symbols, and emoji JSX compositions.
+    - Graceful handling of unknown/unsupported emojis.
+    - Rejection of directory traversal attacks.
+    - Memory caching and cache invalidation.
+- Verified: `bun test` (751 passing tests across 93 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).

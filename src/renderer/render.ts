@@ -1,13 +1,107 @@
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 import { MAX_RENDER_DURATION_MS, MAX_SVG_BYTES } from "../domain/dimensions";
 import { RenderError } from "../domain/errors";
-import { getDefaultFontConfig } from "./fonts";
+import { getDefaultFontConfigs, getSymbolFontConfig } from "./fonts";
 import { interpretJsx } from "./interpreter";
 import { verifyPngDimensions } from "./png";
 import type { RenderOptions, RenderResult, VNode } from "./types";
 import { validateJsx } from "./validator";
 
+const emojiCache = new Map<string, string>();
+
+export function clearEmojiCache(): void {
+  emojiCache.clear();
+}
+
+let twemojiDir: string | null = null;
+
+function getTwemojiDir(): string {
+  if (twemojiDir) {
+    return twemojiDir;
+  }
+  try {
+    const pkgPath = import.meta.resolve("@twemoji/svg/package.json");
+    twemojiDir = dirname(
+      pkgPath.startsWith("file://") ? fileURLToPath(pkgPath) : pkgPath,
+    );
+  } catch {
+    twemojiDir = resolve(process.cwd(), "node_modules", "@twemoji/svg");
+  }
+  return twemojiDir;
+}
+
+function getEmojiCodePointCandidates(str: string): string[] {
+  if (!str) return [];
+
+  const rawPoints: string[] = [];
+  for (const char of str) {
+    const cp = char.codePointAt(0);
+    if (cp !== undefined) {
+      rawPoints.push(cp.toString(16));
+    }
+  }
+  const full = rawPoints.join("-");
+
+  const strippedPoints: string[] = [];
+  for (const char of str) {
+    const cp = char.codePointAt(0);
+    if (cp !== undefined && cp !== 0xfe0f) {
+      strippedPoints.push(cp.toString(16));
+    }
+  }
+  const stripped = strippedPoints.join("-");
+
+  if (full === stripped) {
+    return [full];
+  }
+  if (str.includes("\u200D")) {
+    return [full, stripped];
+  }
+  return [stripped, full];
+}
+
+const CODEPOINT_REGEX = /^[0-9a-f]+(-[0-9a-f]+)*$/;
+
+export async function loadLocalEmoji(
+  segment: string,
+): Promise<string | undefined> {
+  const cached = emojiCache.get(segment);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const candidates = getEmojiCodePointCandidates(segment);
+  const baseDir = getTwemojiDir();
+
+  for (const candidate of candidates) {
+    if (!CODEPOINT_REGEX.test(candidate)) {
+      continue;
+    }
+
+    const possiblePaths = [
+      resolve(baseDir, `${candidate}.svg`),
+      resolve(baseDir, "svg", `${candidate}.svg`),
+    ];
+
+    for (const filePath of possiblePaths) {
+      try {
+        const svgContent = await readFile(filePath, "utf-8");
+        const base64 = Buffer.from(svgContent, "utf-8").toString("base64");
+        const dataUri = `data:image/svg+xml;base64,${base64}`;
+        emojiCache.set(segment, dataUri);
+        return dataUri;
+      } catch {
+        // Continue searching candidates
+      }
+    }
+  }
+
+  return undefined;
+}
 export async function renderVNode(
   vnode: VNode,
   options: RenderOptions,
@@ -33,8 +127,13 @@ export async function renderVNode(
 
   let fonts = options.fonts;
   if (!fonts || fonts.length === 0) {
-    const defaultFont = await getDefaultFontConfig();
-    fonts = [defaultFont];
+    fonts = await getDefaultFontConfigs();
+  } else {
+    const hasSymbols = fonts.some((f) => f.name === "Noto Sans Symbols");
+    if (!hasSymbols) {
+      const symbolFont = await getSymbolFontConfig();
+      fonts = [...fonts, symbolFont];
+    }
   }
 
   const satoriFonts = fonts.map((f) => ({
@@ -53,6 +152,13 @@ export async function renderVNode(
         width: roundedWidth,
         height: roundedHeight,
         fonts: satoriFonts,
+        loadAdditionalAsset: async (languageCode: string, segment: string) => {
+          if (languageCode === "emoji") {
+            const asset = await loadLocalEmoji(segment);
+            return (asset ?? undefined) as unknown as string;
+          }
+          return undefined as unknown as string;
+        },
       });
     } catch (error) {
       if (error instanceof RenderError) {

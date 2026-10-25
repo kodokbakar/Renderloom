@@ -100,4 +100,35 @@ describe("License Review and Compliance Suite", () => {
     expect(licenseText).toContain("SIL Open Font License, Version 1.1");
     expect(licenseText).toContain("Roboto Project Authors");
   });
+
+  test("verifies Noto Sans Symbols font binary is present and non-empty", async () => {
+    const fontPath = path.join(
+      rootDir,
+      "src",
+      "renderer",
+      "fonts",
+      "NotoSansSymbols-Regular.ttf",
+    );
+    expect(existsSync(fontPath)).toBe(true);
+
+    const stats = await stat(fontPath);
+    expect(stats.size).toBeGreaterThan(100_000);
+  });
+
+  test("verifies Noto Sans Symbols font license file contains SIL OFL 1.1 terms and copyright notice", async () => {
+    const licensePath = path.join(
+      rootDir,
+      "src",
+      "renderer",
+      "fonts",
+      "LICENSE-NotoSansSymbols.txt",
+    );
+    expect(existsSync(licensePath)).toBe(true);
+
+    const licenseText = await readFile(licensePath, "utf-8");
+    expect(licenseText.length).toBeGreaterThan(500);
+
+    expect(licenseText).toContain("SIL OPEN FONT LICENSE Version 1.1");
+    expect(licenseText).toContain("The Noto Project Authors");
+  });
 });

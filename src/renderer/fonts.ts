@@ -3,19 +3,26 @@ import { resolve } from "node:path";
 import { RenderError } from "../domain/errors";
 import type { FontConfig } from "./types";
 
-let cachedFontBuffer: ArrayBuffer | null = null;
+const fontBufferCache = new Map<string, ArrayBuffer>();
 
-const DEFAULT_FONT_PATH = resolve(
+export const DEFAULT_FONT_PATH = resolve(
   import.meta.dir,
   "fonts",
   "Roboto-Regular.ttf",
 );
 
+export const SYMBOL_FONT_PATH = resolve(
+  import.meta.dir,
+  "fonts",
+  "NotoSansSymbols-Regular.ttf",
+);
+
 export async function loadBundledFont(
   fontPath: string = DEFAULT_FONT_PATH,
 ): Promise<ArrayBuffer> {
-  if (cachedFontBuffer && fontPath === DEFAULT_FONT_PATH) {
-    return cachedFontBuffer;
+  const cached = fontBufferCache.get(fontPath);
+  if (cached) {
+    return cached;
   }
 
   try {
@@ -25,10 +32,7 @@ export async function loadBundledFont(
       buffer.byteOffset + buffer.byteLength,
     );
 
-    if (fontPath === DEFAULT_FONT_PATH) {
-      cachedFontBuffer = arrayBuffer;
-    }
-
+    fontBufferCache.set(fontPath, arrayBuffer);
     return arrayBuffer;
   } catch (error) {
     throw new RenderError(
@@ -40,7 +44,7 @@ export async function loadBundledFont(
 }
 
 export async function getDefaultFontConfig(): Promise<FontConfig> {
-  const data = await loadBundledFont();
+  const data = await loadBundledFont(DEFAULT_FONT_PATH);
   return {
     name: "Roboto",
     data,
@@ -49,6 +53,24 @@ export async function getDefaultFontConfig(): Promise<FontConfig> {
   };
 }
 
+export async function getSymbolFontConfig(): Promise<FontConfig> {
+  const data = await loadBundledFont(SYMBOL_FONT_PATH);
+  return {
+    name: "Noto Sans Symbols",
+    data,
+    weight: 400,
+    style: "normal",
+  };
+}
+
+export async function getDefaultFontConfigs(): Promise<FontConfig[]> {
+  const [roboto, symbols] = await Promise.all([
+    getDefaultFontConfig(),
+    getSymbolFontConfig(),
+  ]);
+  return [roboto, symbols];
+}
+
 export function clearFontCache(): void {
-  cachedFontBuffer = null;
+  fontBufferCache.clear();
 }
