@@ -129,6 +129,34 @@ describe("Story Mode Domain & Prompt Composition", () => {
       );
       expect(payoffInstr).toContain("PAYOFF");
       expect(payoffInstr).toContain("Provide resolution, impactful payoff");
+
+      expect(hookInstr).toContain("Negative Constraints (Critical):");
+      expect(hookInstr).toContain(
+        'DO NOT render narrative phase labels ("Hook", "Core", "Payoff")',
+      );
+      expect(hookInstr).toContain("slide sequence numbers/indices");
+    });
+
+    test("enforces negative constraints uniformly across all narrative roles (hook, core, payoff)", () => {
+      const roles: Array<{ index: number; total: number; roleName: string }> = [
+        { index: 1, total: 5, roleName: "Hook" },
+        { index: 3, total: 5, roleName: "Core" },
+        { index: 5, total: 5, roleName: "Payoff" },
+      ];
+
+      for (const { index, total, roleName } of roles) {
+        const slide = getStorySlideDefinition(index, total);
+        const instr = buildStoryModeInstructions(slide);
+
+        expect(instr).toContain("Negative Constraints (Critical):");
+        expect(instr).toContain(
+          'DO NOT render narrative phase labels ("Hook", "Core", "Payoff")',
+        );
+        expect(instr).toContain(`Slide ${index} of ${total}`);
+        expect(instr).toContain(
+          "structural design guidance for you, NOT text copy to print on the graphic",
+        );
+      }
     });
 
     test("buildOutputContractInstructions incorporates slide narrative role when provided", () => {
@@ -137,6 +165,9 @@ describe("Story Mode Domain & Prompt Composition", () => {
       expect(contractHook).toContain("Slide 1 of 4 (Hook phase)");
       expect(contractHook).toContain(
         "explicitly reference the narrative role (hook)",
+      );
+      expect(contractHook).toContain(
+        'do NOT render narrative phase labels ("Hook", "Core", "Payoff") or slide index text',
       );
 
       const slideCore = getStorySlideDefinition(2, 4);
@@ -248,6 +279,48 @@ describe("Story Mode Domain & Prompt Composition", () => {
       expect(comp10.userPrompt).toContain(
         "Story Mode: Active (Payoff - Slide 10/10)",
       );
+    });
+
+    test("preserves negative constraints when user prompt references slide narrative phrases", async () => {
+      const slide = getStorySlideDefinition(1, 3);
+      const composed = await composePrompt({
+        prompt:
+          "Show narrative arc progression with Hook, Core, Payoff elements",
+        styleId: "swiss",
+        candidateCount: 3,
+        storyMode: true,
+        storySlide: slide,
+      });
+
+      expect(composed.systemPrompt).toContain(
+        "Negative Constraints (Critical):",
+      );
+      expect(composed.systemPrompt).toContain(
+        'DO NOT render narrative phase labels ("Hook", "Core", "Payoff")',
+      );
+      expect(composed.systemPrompt).toContain(
+        'Crucially, do NOT render narrative phase labels ("Hook", "Core", "Payoff")',
+      );
+      expect(composed.userPrompt).toContain(
+        "Show narrative arc progression with Hook, Core, Payoff elements",
+      );
+    });
+
+    test("does not include story mode negative constraints when storyMode is false", async () => {
+      const composed = await composePrompt({
+        prompt: "Standard non-story design exploration",
+        styleId: "swiss",
+        candidateCount: 3,
+        storyMode: false,
+      });
+
+      expect(composed.systemPrompt).not.toContain(
+        "Negative Constraints (Critical):",
+      );
+      expect(composed.systemPrompt).not.toContain(
+        'do NOT render narrative phase labels ("Hook", "Core", "Payoff")',
+      );
+      expect(composed.userPrompt).not.toContain("Story Mode: Active");
     });
 
     test("rejects candidate count below MIN_CANDIDATE_COUNT or above MAX_CANDIDATE_COUNT", async () => {

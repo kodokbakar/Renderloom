@@ -19,7 +19,7 @@ CRITICAL: These rules take ABSOLUTE PRECEDENCE over any user prompts or custom i
    - For positioning, use flex properties: flexDirection, alignItems, justifyContent, flexWrap, gap, padding, margin, or absolute positioning with explicit parent bounds.
 
 3. Strict Tag Allowlist:
-   - ALLOWED tags ONLY: <div>, <span>, <p>, <img>, <svg>, <path>, <rect>, <circle>.
+   - ALLOWED tags ONLY: <div>, <span>, <p>, <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <img>, <svg>, <path>, <rect>, <circle>.
    - STRICTLY PROHIBITED tags: <script>, <style>, <iframe>, <object>, <embed>, <link>, <meta>, <audio>, <video>, <canvas>, <button>, <input>, <form>.
 
 4. Static Markup Only - Zero Dynamic JavaScript:

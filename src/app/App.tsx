@@ -80,6 +80,9 @@ export function App({
   >({});
   const [isRevising, setIsRevising] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [retryingCandidateId, setRetryingCandidateId] = useState<string | null>(
+    null,
+  );
   const [styles, setStyles] = useState<StylePresetSummary[]>([]);
   const [providers, setProviders] = useState<ProviderMeta[]>([]);
 
@@ -522,6 +525,7 @@ export function App({
 
   const handleRetryCandidate = async (candidateId: string) => {
     if (!session?.activeBatchId) return;
+    setRetryingCandidateId(candidateId);
     try {
       const res = await fetch(
         `/api/generations/${session.activeBatchId}/candidates/${candidateId}/retry`,
@@ -546,6 +550,8 @@ export function App({
       }
     } catch {
       // Offline fallback
+    } finally {
+      setRetryingCandidateId(null);
     }
   };
 
@@ -737,6 +743,8 @@ export function App({
               onSelectCandidate={handleSelectCandidate}
               onInspectCandidate={handleInspectCandidate}
               onRetryCandidate={handleRetryCandidate}
+              retryingCandidateId={retryingCandidateId ?? undefined}
+              isRetrying={retryingCandidateId !== null}
               isGenerating={
                 isGenerating || session?.lastBatchStatus === "running"
               }
@@ -754,6 +762,11 @@ export function App({
             onPrevCandidate={handlePrevCandidate}
             onNextCandidate={handleNextCandidate}
             onRetry={handleRetryCandidate}
+            isRetrying={
+              retryingCandidateId !== null &&
+              (selectedCandidateId === retryingCandidateId ||
+                selectedCandidate?.id === retryingCandidateId)
+            }
             jsxSource={activeSources?.jsx}
             svgSource={activeSources?.svg}
             isLoadingSource={isLoadingSource}

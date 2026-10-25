@@ -11,7 +11,7 @@ export function buildOutputContractInstructions(
 ): string {
   const count = Math.max(1, candidateCount);
   const narrativeInstruction = storySlide
-    ? `2. This candidate represents Slide ${storySlide.index} of ${storySlide.totalSlides} (${storySlide.roleName} phase). In 'label' and 'rationale', explicitly reference the narrative role (${storySlide.role}) and explain how the visual layout serves this narrative arc phase.`
+    ? `2. This candidate represents Slide ${storySlide.index} of ${storySlide.totalSlides} (${storySlide.roleName} phase). In 'label' and 'rationale', explicitly reference the narrative role (${storySlide.role}) and explain how the visual layout serves this narrative arc phase. Crucially, do NOT render narrative phase labels ("Hook", "Core", "Payoff") or slide index text (e.g., "Slide ${storySlide.index}", "Slide ${storySlide.index} of ${storySlide.totalSlides}") onto the canvas unless explicitly requested by the user prompt.`
     : "2. Each candidate must represent a distinct visual exploration within the requested style.";
 
   return `### STRUCTURED OUTPUT CONTRACT

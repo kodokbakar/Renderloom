@@ -46,7 +46,25 @@ describe("ErrorCard", () => {
     expect(html).toContain("[REDACTED_API_KEY]");
     expect(html).not.toContain("/home/dokbakar/eval.jsx");
     expect(html).not.toContain("sk-ant-1234567890abcdef");
+    expect(html).toContain('data-testid="error-card-retry-button"');
     expect(html).toContain("Retry Candidate");
+  });
+
+  test("renders retry button in loading state with spinner and disabled when isRetrying is true", () => {
+    const failedCand: Candidate = {
+      ...baseCandidate,
+      state: "failed",
+      errorMessage: "Render timeout",
+    };
+
+    const html = renderToStaticMarkup(
+      <ErrorCard candidate={failedCand} onRetry={() => {}} isRetrying={true} />,
+    );
+
+    expect(html).toContain('data-testid="error-card-retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+    expect(html).toContain("spin");
   });
 
   test("renders cancelled candidate with cancellation message", () => {
@@ -59,5 +77,45 @@ describe("ErrorCard", () => {
 
     expect(html).toContain("Candidate Cancelled");
     expect(html).toContain("Generation was cancelled by the user.");
+  });
+
+  test("renders retry button in loading state for cancelled candidate when isRetrying is true", () => {
+    const cancelledCand: Candidate = {
+      ...baseCandidate,
+      id: "c-cancel-01",
+      label: "Poster Layout",
+      state: "cancelled",
+    };
+
+    const html = renderToStaticMarkup(
+      <ErrorCard
+        candidate={cancelledCand}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain('data-testid="error-card-retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+    expect(html).toContain("spin");
+    expect(html).toContain('aria-label="Retrying candidate Poster Layout"');
+  });
+
+  test("returns empty output when candidate is not in failed or cancelled state", () => {
+    const completedCand: Candidate = {
+      ...baseCandidate,
+      state: "completed",
+    };
+
+    const html = renderToStaticMarkup(
+      <ErrorCard
+        candidate={completedCand}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toBe("");
   });
 });

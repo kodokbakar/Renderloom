@@ -27,7 +27,9 @@ describe("Technical Constraints Builder", () => {
   test("enforces tag allowlist and prohibits dangerous elements", () => {
     const text = buildTechnicalConstraints(dimensions);
     expect(text).toContain("ALLOWED tags ONLY");
-    expect(text).toContain("<div>, <span>, <p>, <img>, <svg>");
+    expect(text).toContain(
+      "<div>, <span>, <p>, <h1>, <h2>, <h3>, <h4>, <h5>, <h6>, <img>, <svg>",
+    );
     expect(text).toContain(
       "STRICTLY PROHIBITED tags: <script>, <style>, <iframe>, <object>, <embed>",
     );

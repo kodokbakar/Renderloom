@@ -10,6 +10,8 @@ export interface CandidateGalleryProps {
   onSelectCandidate: (candidate: Candidate) => void;
   onInspectCandidate?: (candidate: Candidate) => void;
   onRetryCandidate?: (candidateId: string) => void;
+  isRetrying?: boolean;
+  retryingCandidateId?: string;
   isGenerating?: boolean;
   className?: string;
 }
@@ -21,6 +23,8 @@ export function CandidateGallery({
   onSelectCandidate,
   onInspectCandidate,
   onRetryCandidate,
+  isRetrying = false,
+  retryingCandidateId,
   isGenerating = false,
   className = "",
 }: CandidateGalleryProps) {
@@ -77,6 +81,11 @@ export function CandidateGallery({
             onSelect={onSelectCandidate}
             onInspect={onInspectCandidate}
             onRetry={onRetryCandidate}
+            isRetrying={
+              isRetrying ||
+              (retryingCandidateId !== undefined &&
+                retryingCandidateId === candidate.id)
+            }
           />
         ))}
       </section>

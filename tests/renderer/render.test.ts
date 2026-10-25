@@ -57,6 +57,65 @@ describe("Core Renderer Engine", () => {
     expect(dims.height).toBe(1080);
   });
 
+  test("renders heading elements h1 through h6 to SVG and PNG", async () => {
+    const jsx = `
+      <div style={{ display: "flex", flexDirection: "column", width: 600, height: 400, backgroundColor: "#ffffff" }}>
+        <h1 style={{ fontSize: 32, color: "#111827" }}>Title 1</h1>
+        <h2 style={{ fontSize: 24, color: "#374151" }}>Title 2</h2>
+        <h3 style={{ fontSize: 20, color: "#4b5563" }}>Title 3</h3>
+        <h4 style={{ fontSize: 16, color: "#6b7280" }}>Title 4</h4>
+        <h5 style={{ fontSize: 14, color: "#9ca3af" }}>Title 5</h5>
+        <h6 style={{ fontSize: 12, color: "#d1d5db" }}>Title 6</h6>
+      </div>
+    `;
+
+    const result = await render(jsx, { width: 600, height: 400 });
+    expect(result.width).toBe(600);
+    expect(result.height).toBe(400);
+    expect(result.svg).toContain("<svg");
+    expect(result.svg).toContain('width="600"');
+    expect(result.svg).toContain('height="400"');
+    expect(result.svg).toContain("<path");
+    expect(result.svg).toContain("#111827");
+    expect(result.svg).toContain("#d1d5db");
+    expect(Buffer.isBuffer(result.png)).toBe(true);
+    expect(result.png.length).toBeGreaterThan(100);
+  });
+
+  test("renders deeply nested heading hierarchy with complex styling to valid SVG and PNG", async () => {
+    const jsx = `
+      <div style={{ display: "flex", flexDirection: "column", width: 800, height: 600, backgroundColor: "#0f172a", padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h1 style={{ fontSize: 36, color: "#f8fafc", margin: 0, letterSpacing: "-0.01em" }}>
+            Hero <span style={{ color: "#38bdf8" }}>Title</span>
+          </h1>
+          <h2 style={{ fontSize: 20, color: "#94a3b8", margin: 0 }}>Subtitle</h2>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
+          <h3 style={{ fontSize: 18, color: "#cbd5e1" }}>Nested Section</h3>
+          <div style={{ display: "flex", gap: 16 }}>
+            <h4 style={{ fontSize: 16, color: "#e2e8f0" }}>Item A</h4>
+            <h5 style={{ fontSize: 14, color: "#64748b" }}>Item B</h5>
+            <h6 style={{ fontSize: 12, color: "#475569" }}>Item C</h6>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const result = await render(jsx, { width: 800, height: 600 });
+    expect(result.width).toBe(800);
+    expect(result.height).toBe(600);
+    expect(result.svg).toContain("<svg");
+    expect(result.svg).toContain('width="800"');
+    expect(result.svg).toContain('height="600"');
+    expect(result.svg).toContain("#38bdf8");
+    expect(result.svg).toContain("#0f172a");
+    expect(Buffer.isBuffer(result.png)).toBe(true);
+    const dims = readPngDimensions(result.png);
+    expect(dims.width).toBe(800);
+    expect(dims.height).toBe(600);
+  });
+
   test("rejects invalid dimensions", async () => {
     const jsx = `<div style={{ display: "flex" }}>Hello</div>`;
 

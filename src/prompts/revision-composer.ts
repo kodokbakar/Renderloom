@@ -146,8 +146,25 @@ export async function composeRevisionPrompt(
 
   userPromptParts.push(
     "",
+    "### REVISION DIRECTIVE HIERARCHY (Apply in strict priority order):",
+    "Level 1: Content & Text Replacement",
+    "- Execute all requested text replacements, copy updates, title edits, labels, and content changes accurately and completely.",
+    "- Ensure updated text fits cleanly into container dimensions without clipping or unformatted overflow.",
+    "",
+    "Level 2: Structural & Layout Restructuring",
+    "- Restructure containers, flex directions, alignments, section order, or visual hierarchy when requested by the revision.",
+    "- Preserve explicit flex container properties (display: 'flex', flexDirection, alignItems, justifyContent, gap, padding).",
+    "",
+    "Level 3: Styling & Aesthetic Adjustments",
+    "- Apply requested modifications to color palette, backgrounds, typography sizing, font weights, borders, or decorative accents.",
+    `- Maintain consistency with the active style preset (${stylePreset.name}) and all technical constraints.`,
+    "",
+    "Level 4: Preservation of Unmodified Elements",
+    "- Strictly preserve all existing layout structures, elements, styling, and text copy that are NOT targeted by the revision request.",
+    "- Do NOT arbitrarily redesign, drop, or rewrite working sections of the current JSX unless directly required by higher-level directives.",
+    "",
     "### REVISION INSTRUCTIONS:",
-    "Modify the current JSX above according to the following instruction while strictly maintaining all technical constraints, styling rules, and dimensions:",
+    "Modify the current JSX above according to the following user directive while adhering to the 4-level hierarchy, technical constraints, styling rules, and dimensions:",
     trimmedPrompt,
   );
 

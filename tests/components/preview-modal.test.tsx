@@ -146,4 +146,75 @@ describe("PreviewModal", () => {
     expect(html).not.toContain("/home/dokbakar/font.ttf");
     expect(html).toContain("Image unavailable");
   });
+
+  test("renders ErrorCard in loading state when isRetrying is true", () => {
+    const failedCand: Candidate = {
+      ...mockCandidate,
+      state: "failed",
+      errorCode: "RENDER_FAILED",
+      errorMessage: "Render timeout",
+    };
+
+    const html = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={failedCand}
+        session={mockSession}
+        onClose={() => {}}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain('data-testid="error-card-retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+  });
+
+  test("renders ErrorCard in loading state when candidate is cancelled and isRetrying is true", () => {
+    const cancelledCand: Candidate = {
+      ...mockCandidate,
+      state: "cancelled",
+      errorCode: "USER_CANCELLED",
+    };
+
+    const html = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={cancelledCand}
+        session={mockSession}
+        onClose={() => {}}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).toContain("Candidate Cancelled");
+    expect(html).toContain('data-testid="error-card-retry-button"');
+    expect(html).toContain("disabled");
+    expect(html).toContain("Retrying...");
+  });
+
+  test("does not render retry button in PreviewModal when candidate is completed even if isRetrying is true", () => {
+    const completedCand: Candidate = {
+      ...mockCandidate,
+      state: "completed",
+    };
+
+    const html = renderToStaticMarkup(
+      <PreviewModal
+        isOpen={true}
+        sessionId="sess-1"
+        candidate={completedCand}
+        session={mockSession}
+        onClose={() => {}}
+        onRetry={() => {}}
+        isRetrying={true}
+      />,
+    );
+
+    expect(html).not.toContain('data-testid="error-card-retry-button"');
+  });
 });

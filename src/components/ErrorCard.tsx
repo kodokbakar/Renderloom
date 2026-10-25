@@ -5,12 +5,14 @@ import { sanitizeErrorMessage } from "./utils/sanitize-error";
 export interface ErrorCardProps {
   candidate: Candidate;
   onRetry?: (candidateId: string) => void;
+  isRetrying?: boolean;
   className?: string;
 }
 
 export function ErrorCard({
   candidate,
   onRetry,
+  isRetrying = false,
   className = "",
 }: ErrorCardProps) {
   if (candidate.state !== "failed" && candidate.state !== "cancelled") {
@@ -52,11 +54,17 @@ export function ErrorCard({
           <button
             type="button"
             className="btn-retry-action"
+            data-testid="error-card-retry-button"
             onClick={() => onRetry(candidate.id)}
-            aria-label={`Retry candidate ${candidate.label || candidate.id}`}
+            disabled={isRetrying}
+            aria-label={
+              isRetrying
+                ? `Retrying candidate ${candidate.label || candidate.id}`
+                : `Retry candidate ${candidate.label || candidate.id}`
+            }
           >
-            <RefreshCwIcon size={14} />
-            <span>Retry Candidate</span>
+            <RefreshCwIcon size={14} className={isRetrying ? "spin" : ""} />
+            <span>{isRetrying ? "Retrying..." : "Retry Candidate"}</span>
           </button>
         </div>
       )}

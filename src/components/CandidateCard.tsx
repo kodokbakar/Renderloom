@@ -14,6 +14,7 @@ export interface CandidateCardProps {
   onSelect?: (candidate: Candidate) => void;
   onRetry?: (candidateId: string) => void;
   onInspect?: (candidate: Candidate) => void;
+  isRetrying?: boolean;
 }
 
 export function CandidateCard({
@@ -23,6 +24,7 @@ export function CandidateCard({
   onSelect,
   onRetry,
   onInspect,
+  isRetrying = false,
 }: CandidateCardProps) {
   const [imgError, setImgError] = useState(false);
 
@@ -133,10 +135,17 @@ export function CandidateCard({
               <button
                 type="button"
                 className="btn-card-retry"
+                data-testid="retry-button"
                 onClick={handleRetryClick}
-                aria-label={`Retry ${displayName}`}
+                disabled={isRetrying}
+                aria-label={
+                  isRetrying
+                    ? `Retrying ${displayName}`
+                    : `Retry ${displayName}`
+                }
               >
-                <RefreshCwIcon size={12} /> Retry
+                <RefreshCwIcon size={12} className={isRetrying ? "spin" : ""} />{" "}
+                {isRetrying ? "Retrying..." : "Retry"}
               </button>
             )}
           </div>
@@ -148,10 +157,17 @@ export function CandidateCard({
               <button
                 type="button"
                 className="btn-card-retry"
+                data-testid="retry-button"
                 onClick={handleRetryClick}
-                aria-label={`Retry ${displayName}`}
+                disabled={isRetrying}
+                aria-label={
+                  isRetrying
+                    ? `Retrying ${displayName}`
+                    : `Retry ${displayName}`
+                }
               >
-                <RefreshCwIcon size={12} /> Retry
+                <RefreshCwIcon size={12} className={isRetrying ? "spin" : ""} />{" "}
+                {isRetrying ? "Retrying..." : "Retry"}
               </button>
             )}
           </div>
