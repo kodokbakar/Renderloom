@@ -113,7 +113,7 @@ describe("Prompt Composer Module", () => {
       composePrompt({
         prompt: "Valid prompt",
         styleId: "bauhaus",
-        candidateCount: 5, // max is 4
+        candidateCount: 11, // max is 10
       }),
     ).rejects.toThrow(ValidationError);
   });

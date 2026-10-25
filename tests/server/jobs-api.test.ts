@@ -154,6 +154,74 @@ describe("Jobs HTTP API", () => {
     expect(sessionData.candidates.length).toBe(2);
   });
 
+  test("POST /api/generations with custom count 5 and storyMode starts batch with narrative arc", async () => {
+    let callIndex = 0;
+    const adapter = new MockAdapter(async () => {
+      callIndex++;
+      return {
+        rawText: JSON.stringify({
+          label: `Story Slide ${callIndex}`,
+          rationale: "Fulfills arc step",
+          jsx: "<div style={{ width: 200, height: 100, color: '#fff' }}>Slide</div>",
+        }),
+        modelId: "mock-model",
+        durationMs: 10,
+      };
+    });
+    providerRegistry.register(adapter);
+
+    const res = await fetch(`${baseUrl}/api/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        prompt: "Chronicle of deep sea exploration",
+        candidateCount: 5,
+        storyMode: true,
+      }),
+    });
+
+    expect(res.status).toBe(202);
+    const data = (await res.json()) as {
+      batchId: string;
+      sessionId: string;
+      candidates: { id: string; storyArcRole?: string }[];
+    };
+    expect(data.batchId).toBeDefined();
+    expect(data.candidates.length).toBe(5);
+
+    const initialRoles = data.candidates.map((c) => c.storyArcRole);
+    expect(initialRoles).toEqual(["hook", "core", "core", "core", "payoff"]);
+
+    const batch = coordinator.getBatch(data.batchId);
+    expect(batch).toBeDefined();
+    await batch?.completionPromise;
+
+    // Verify GET /api/generations/:batchId returns completed batch with storyArcRoles
+    const getRes = await fetch(`${baseUrl}/api/generations/${data.batchId}`);
+    expect(getRes.status).toBe(200);
+    const getData = (await getRes.json()) as {
+      batch: { status: string; candidates: { storyArcRole?: string }[] };
+    };
+    expect(getData.batch.status).toBe("completed");
+    expect(getData.batch.candidates.length).toBe(5);
+    const completedRoles = getData.batch.candidates.map((c) => c.storyArcRole);
+    expect(completedRoles).toEqual(["hook", "core", "core", "core", "payoff"]);
+
+    // Verify session persisted candidates with storyArcRoles
+    const sessionRes = await fetch(
+      `${baseUrl}/api/sessions/${sessionId}/candidates`,
+    );
+    expect(sessionRes.status).toBe(200);
+    const sessionData = (await sessionRes.json()) as {
+      candidates: { storyArcRole?: string }[];
+    };
+    const savedStoryCandidates = sessionData.candidates.filter(
+      (c) => c.storyArcRole !== undefined,
+    );
+    expect(savedStoryCandidates.length).toBe(5);
+  });
+
   test("POST /api/generations rejects invalid payload", async () => {
     const resNoPrompt = await fetch(`${baseUrl}/api/generations`, {
       method: "POST",

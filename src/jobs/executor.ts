@@ -4,6 +4,7 @@ import type {
   CandidateTiming,
 } from "../domain/candidate";
 import { ProviderError, RenderError, ValidationError } from "../domain/errors";
+import type { StoryArcRole } from "../domain/prompt";
 import type { ProviderAdapter } from "../domain/provider";
 import type { SafeModelMetadata, Version } from "../domain/version";
 import { render } from "../renderer/render";
@@ -30,6 +31,7 @@ export interface CandidateJobOptions {
   sessionService: SessionService;
   maxRetries?: number;
   retryBaseDelayMs?: number;
+  storyArcRole?: StoryArcRole;
   signal?: AbortSignal;
   onUpdate?: (candidate: Candidate) => void;
 }
@@ -72,6 +74,7 @@ export async function executeCandidateJob(
     sessionId,
     index,
     state: "queued",
+    storyArcRole: options.storyArcRole,
     retries: 0,
     timings,
     createdAt: now,

@@ -199,6 +199,12 @@ export function StudioControls({
   const [candidateCount, setCandidateCount] = useState<number>(
     generationConfig?.candidateCount || 4,
   );
+  const [isCustomCount, setIsCustomCount] = useState<boolean>(
+    (generationConfig?.candidateCount || 4) > 4,
+  );
+  const [storyMode, setStoryMode] = useState<boolean>(
+    generationConfig?.storyMode ?? session.storyMode ?? false,
+  );
 
   // Aspect ratio detection from width/height
   const initialWidth =
@@ -262,6 +268,7 @@ export function StudioControls({
         height,
         aspectRatio,
         outputFormat: "png",
+        storyMode,
       });
     } catch (err: unknown) {
       setError(
@@ -416,22 +423,115 @@ export function StudioControls({
           </div>
         </div>
 
-        {/* Candidate Count (1 to 4) */}
-        <div className="toolbar-item">
+        {/* Candidate Count (1 to 4 + Custom button + number input up to 10) */}
+        <div className="toolbar-item count-toolbar-item">
           <span className="control-label">Count</span>
           <div className="count-pills" role="radiogroup">
             {[1, 2, 3, 4].map((n) => (
               <button
                 key={n}
                 type="button"
-                className={`pill-btn ${candidateCount === n ? "active" : ""}`}
+                className={`pill-btn ${!isCustomCount && candidateCount === n ? "active" : ""}`}
                 data-testid={`candidate-count-${n}`}
-                onClick={() => setCandidateCount(n)}
+                onClick={() => {
+                  setIsCustomCount(false);
+                  setCandidateCount(n);
+                }}
                 disabled={isGenerating}
               >
                 {n}
               </button>
             ))}
+            <button
+              type="button"
+              className={`pill-btn ${isCustomCount ? "active" : ""}`}
+              data-testid="candidate-count-custom"
+              onClick={() => {
+                setIsCustomCount(true);
+                if (candidateCount < 1 || candidateCount > 10) {
+                  setCandidateCount(5);
+                }
+              }}
+              disabled={isGenerating}
+            >
+              Custom
+            </button>
+            {isCustomCount && (
+              <div className="custom-count-input-wrapper">
+                <input
+                  id="studio-custom-count-input"
+                  type="number"
+                  min={1}
+                  max={10}
+                  className="control-number-input custom-count-input"
+                  data-testid="studio-custom-count-input"
+                  aria-label="Custom candidate count (1 to 10)"
+                  value={candidateCount}
+                  onChange={(e) => {
+                    const parsed = Number.parseInt(e.target.value, 10);
+                    if (Number.isNaN(parsed)) {
+                      setCandidateCount(1);
+                    } else {
+                      const clamped = Math.max(1, Math.min(10, parsed));
+                      setCandidateCount(clamped);
+                    }
+                  }}
+                  disabled={isGenerating}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Story Mode Toggle & Narrative Arc Badge */}
+        <div className="toolbar-item story-mode-toolbar-item">
+          <span className="control-label">Story Mode</span>
+          <div className="story-mode-controls">
+            <button
+              type="button"
+              className={`pill-btn story-mode-btn ${storyMode ? "active" : ""}`}
+              data-testid="studio-story-mode-toggle"
+              aria-pressed={storyMode}
+              onClick={() => setStoryMode(!storyMode)}
+              disabled={isGenerating}
+              title="Toggle narrative progression (Hook -> Core -> Payoff)"
+            >
+              📖 Story Mode
+            </button>
+            {storyMode && (
+              <div
+                className="narrative-arc-badge"
+                data-testid="narrative-arc-badge"
+                aria-label="Narrative Arc Progression: Hook -> Core -> Payoff"
+              >
+                <span
+                  className="arc-step hook"
+                  title="Slide 1: Hook (Attention & Premise)"
+                >
+                  Hook
+                </span>
+                {candidateCount >= 2 && <span className="arc-arrow">→</span>}
+                {candidateCount > 2 && (
+                  <>
+                    <span
+                      className="arc-step core"
+                      title={`Slides 2${candidateCount > 3 ? `-${candidateCount - 1}` : ""}: Core (Narrative Body)`}
+                    >
+                      Core{candidateCount > 3 ? ` ×${candidateCount - 2}` : ""}
+                    </span>
+                    <span className="arc-arrow">→</span>
+                  </>
+                )}
+                {candidateCount >= 2 && (
+                  <span
+                    className="arc-step payoff"
+                    title={`Slide ${candidateCount}: Payoff (Resolution & Climax)`}
+                  >
+                    Payoff
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

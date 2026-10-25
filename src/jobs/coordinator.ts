@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import type { Candidate } from "../domain/candidate";
 import { MAX_CANDIDATE_COUNT, MIN_CANDIDATE_COUNT } from "../domain/dimensions";
 import { ProviderError, RenderError, ValidationError } from "../domain/errors";
+import { type ComposedPrompt, getStorySlideDefinition } from "../domain/prompt";
 import type { LLMGenerationResponse } from "../domain/provider";
 import type { BatchSummary } from "../domain/session";
 import type { Version } from "../domain/version";
@@ -130,6 +131,7 @@ export class GenerationCoordinator extends EventEmitter {
       }
     }
 
+    const isStoryMode = Boolean(options.storyMode);
     const batchId = `batch-${crypto.randomUUID()}`;
     const now = new Date().toISOString();
     const batchAbortController = new AbortController();
@@ -139,12 +141,16 @@ export class GenerationCoordinator extends EventEmitter {
       const candidateIndex = highestIndex + i + 1;
       const candidateId = formatCandidateId(candidateIndex);
       const abortController = new AbortController();
+      const storySlide = isStoryMode
+        ? getStorySlideDefinition(i + 1, candidateCount)
+        : undefined;
 
       const candidate: Candidate = {
         id: candidateId,
         sessionId: session.id,
         index: candidateIndex,
         state: "queued",
+        storyArcRole: storySlide?.role,
         createdAt: now,
         updatedAt: now,
         timings: {
@@ -177,6 +183,7 @@ export class GenerationCoordinator extends EventEmitter {
         candidateCount,
         width,
         height,
+        storyMode: isStoryMode,
       },
       candidates: candidateRecords,
       abortController: batchAbortController,
@@ -196,24 +203,53 @@ export class GenerationCoordinator extends EventEmitter {
     }
 
     // Compose prompt for candidates
-    // ponytail: single composed prompt shared across candidate jobs in batch
-    const composed = await composePrompt(
-      {
-        prompt: options.prompt,
-        styleId,
-        candidateCount: 1, // Compose request instructions per candidate
-        width,
-        height,
-      },
-      { styleRegistry: this.styleRegistry },
-    );
+    // In story mode, compose per-slide prompt tailored to each narrative arc role.
+    // In standard mode, single composed prompt shared across candidate jobs in batch.
+    const slidePrompts = isStoryMode
+      ? await Promise.all(
+          candidateRecords.map(async (_record, i) => {
+            const storySlide = getStorySlideDefinition(i + 1, candidateCount);
+            return composePrompt(
+              {
+                prompt: options.prompt,
+                styleId,
+                candidateCount: 1,
+                width,
+                height,
+                storyMode: true,
+                storySlide,
+              },
+              { styleRegistry: this.styleRegistry },
+            );
+          }),
+        )
+      : undefined;
+
+    const composed = !isStoryMode
+      ? await composePrompt(
+          {
+            prompt: options.prompt,
+            styleId,
+            candidateCount: 1, // Compose request instructions per candidate
+            width,
+            height,
+          },
+          { styleRegistry: this.styleRegistry },
+        )
+      : undefined;
 
     // Save prompt snapshot if session prompt snapshot not yet saved or updated
     try {
-      await this.sessionService.savePromptSnapshot(
-        session.id,
-        composed.effectivePrompt,
-      );
+      const initialSnapshot =
+        isStoryMode && slidePrompts?.[0]
+          ? slidePrompts[0].effectivePrompt
+          : composed?.effectivePrompt;
+      if (initialSnapshot) {
+        await this.sessionService.savePromptSnapshot(
+          session.id,
+          initialSnapshot,
+        );
+      }
     } catch {
       // Non-critical
     }
@@ -222,11 +258,20 @@ export class GenerationCoordinator extends EventEmitter {
     batch.status = "running";
     batch.updatedAt = new Date().toISOString();
 
-    const candidatePromises = candidateRecords.map((record) => {
+    const candidatePromises = candidateRecords.map((record, i) => {
       const effectiveSignal = AbortSignal.any([
         batch.abortController.signal,
         record.abortController.signal,
       ]);
+
+      const userPrompt =
+        isStoryMode && slidePrompts?.[i]
+          ? slidePrompts[i].userPrompt
+          : (composed?.userPrompt ?? "");
+      const systemPrompt =
+        isStoryMode && slidePrompts?.[i]
+          ? slidePrompts[i].systemPrompt
+          : (composed?.systemPrompt ?? "");
 
       const jobPromise = this.queue
         .enqueue(async () => {
@@ -234,8 +279,9 @@ export class GenerationCoordinator extends EventEmitter {
             sessionId: session.id,
             candidateId: record.candidateId,
             index: record.index,
-            prompt: composed.userPrompt,
-            systemPrompt: composed.systemPrompt,
+            prompt: userPrompt,
+            systemPrompt: systemPrompt,
+            storyArcRole: record.candidate.storyArcRole,
             providerAdapter,
             modelId,
             apiKey,
@@ -460,16 +506,39 @@ export class GenerationCoordinator extends EventEmitter {
     this.emit("candidate_update", { batchId, candidate: record.candidate });
     await this.sessionService.saveCandidate(session.id, record.candidate);
 
-    const composed = await composePrompt(
-      {
-        prompt: batch.options.prompt,
-        styleId,
-        candidateCount: 1,
-        width,
-        height,
-      },
-      { styleRegistry: this.styleRegistry },
-    );
+    let composed: ComposedPrompt;
+    if (batch.options.storyMode) {
+      const candidateIdxInBatch = batch.candidates.findIndex(
+        (c) => c.candidateId === candidateId,
+      );
+      const slideIndex = candidateIdxInBatch >= 0 ? candidateIdxInBatch + 1 : 1;
+      const totalSlides = batch.candidates.length;
+      const storySlide = getStorySlideDefinition(slideIndex, totalSlides);
+      record.candidate.storyArcRole = storySlide.role;
+      composed = await composePrompt(
+        {
+          prompt: batch.options.prompt,
+          styleId,
+          candidateCount: 1,
+          width,
+          height,
+          storyMode: true,
+          storySlide,
+        },
+        { styleRegistry: this.styleRegistry },
+      );
+    } else {
+      composed = await composePrompt(
+        {
+          prompt: batch.options.prompt,
+          styleId,
+          candidateCount: 1,
+          width,
+          height,
+        },
+        { styleRegistry: this.styleRegistry },
+      );
+    }
 
     const effectiveSignal = AbortSignal.any([
       batch.abortController.signal,
@@ -483,6 +552,7 @@ export class GenerationCoordinator extends EventEmitter {
         index: record.index,
         prompt: composed.userPrompt,
         systemPrompt: composed.systemPrompt,
+        storyArcRole: record.candidate.storyArcRole,
         providerAdapter,
         modelId,
         apiKey,

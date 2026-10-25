@@ -2,10 +2,18 @@ import { ValidationError } from "../domain/errors";
 import type {
   CandidateOutputContract,
   GenerationOutputEnvelope,
+  StorySlideDefinition,
 } from "../domain/prompt";
 
-export function buildOutputContractInstructions(candidateCount = 1): string {
+export function buildOutputContractInstructions(
+  candidateCount = 1,
+  storySlide?: StorySlideDefinition,
+): string {
   const count = Math.max(1, candidateCount);
+  const narrativeInstruction = storySlide
+    ? `2. This candidate represents Slide ${storySlide.index} of ${storySlide.totalSlides} (${storySlide.roleName} phase). In 'label' and 'rationale', explicitly reference the narrative role (${storySlide.role}) and explain how the visual layout serves this narrative arc phase.`
+    : "2. Each candidate must represent a distinct visual exploration within the requested style.";
+
   return `### STRUCTURED OUTPUT CONTRACT
 You must output a strictly valid JSON object adhering to the following schema.
 Do NOT include explanations, markdown formatting, greetings, or conversational remarks outside the JSON block.
@@ -24,7 +32,7 @@ Required JSON Structure:
 
 Instructions:
 1. Provide exactly ${count} candidate object${count > 1 ? "s" : ""} in the 'candidates' array with candidateIndex numbered from 1 to ${count}.
-2. Each candidate must represent a distinct visual exploration within the requested style.
+${narrativeInstruction}
 3. The 'jsx' property must be a single, complete, self-contained JSX string starting with a root <div> element.
 4. Escape quotes properly inside the JSON string values.`;
 }
