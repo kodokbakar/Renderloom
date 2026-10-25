@@ -1,5 +1,7 @@
 # Renderloom
 
+![Renderloom banner](assets/renderloom-banner.svg)
+
 **Local-first, code-first AI image design studio.**
 
 Renderloom turns natural language design briefs into high-resolution graphics through clean, deterministic, editable JSX code. Instead of opaque pixel diffusion, Renderloom combines modern Large Language Models (LLMs) with [Satori](https://github.com/vercel/satori) and [Resvg](https://github.com/thx/resvg-js) to produce crisp vector SVGs and raster PNGs backed by inspectable source code.
