@@ -82,6 +82,23 @@ describe("Core Renderer Engine", () => {
     expect(result.png.length).toBeGreaterThan(100);
   });
 
+  test("renders JSX with <br/> and unclosed <br> tags properly", async () => {
+    const jsx = `
+      <div style={{ display: "flex", flexDirection: "column", width: 500, height: 300, backgroundColor: "#ffffff", padding: 20 }}>
+        <p style={{ fontSize: 18, color: "#111827" }}>
+          Line 1<br/>Line 2<br>Line 3
+        </p>
+      </div>
+    `;
+
+    const result = await render(jsx, { width: 500, height: 300 });
+    expect(result.width).toBe(500);
+    expect(result.height).toBe(300);
+    expect(result.svg).toContain("<svg");
+    expect(Buffer.isBuffer(result.png)).toBe(true);
+    expect(result.png.length).toBeGreaterThan(100);
+  });
+
   test("renders deeply nested heading hierarchy with complex styling to valid SVG and PNG", async () => {
     const jsx = `
       <div style={{ display: "flex", flexDirection: "column", width: 800, height: 600, backgroundColor: "#0f172a", padding: 24 }}>

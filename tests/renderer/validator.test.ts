@@ -637,5 +637,19 @@ describe("Restricted JSX Validator", () => {
         }
       }
     });
+
+    test("transforms <br/> and <br> variants into valid newline expressions", () => {
+      const code1 = "<div><span>Line 1<br/>Line 2</span></div>";
+      const validated1 = validateJsx(code1);
+      expect(validated1.rootElement).toBeDefined();
+
+      const code2 = "<div><span>Line 1<br>Line 2</span></div>";
+      const validated2 = validateJsx(code2);
+      expect(validated2.rootElement).toBeDefined();
+
+      const code3 = "<div><span>Line 1<br />Line 2<BR>Line 3</br></span></div>";
+      const validated3 = validateJsx(code3);
+      expect(validated3.rootElement).toBeDefined();
+    });
   });
 });
