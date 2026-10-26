@@ -9,6 +9,7 @@ import { StudioControls } from "../components/StudioControls";
 import { WorkspaceDashboard } from "../components/WorkspaceDashboard";
 import { WorkspaceHeader } from "../components/WorkspaceHeader";
 import { buildArtifactUrl } from "../components/utils/artifact-url";
+import { downloadBatchZip } from "../components/utils/zip-export";
 import type { Candidate } from "../domain/candidate";
 import type { ProviderMeta } from "../domain/provider";
 import type {
@@ -83,6 +84,8 @@ export function App({
   const [retryingCandidateId, setRetryingCandidateId] = useState<string | null>(
     null,
   );
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+  const [zipDownloadError, setZipDownloadError] = useState<string | null>(null);
   const [styles, setStyles] = useState<StylePresetSummary[]>([]);
   const [providers, setProviders] = useState<ProviderMeta[]>([]);
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
@@ -590,6 +593,25 @@ export function App({
     }
   };
 
+  const handleDownloadAll = async () => {
+    if (!session || candidates.length === 0) return;
+    setIsDownloadingZip(true);
+    setZipDownloadError(null);
+    try {
+      await downloadBatchZip({
+        session,
+        candidates,
+        promptSnapshot: fullSession?.promptSnapshot,
+      });
+    } catch (err) {
+      setZipDownloadError(
+        err instanceof Error ? err.message : "Failed to package ZIP",
+      );
+    } finally {
+      setIsDownloadingZip(false);
+    }
+  };
+
   const handleStudioModelChange = async (
     newProviderId: string,
     newModelId: string,
@@ -801,6 +823,9 @@ export function App({
               status={session?.lastBatchStatus}
               candidates={candidates}
               onCancelBatch={handleCancelBatch}
+              onDownloadAll={handleDownloadAll}
+              isDownloadingAll={isDownloadingZip}
+              downloadError={zipDownloadError}
             />
 
             <CandidateGallery

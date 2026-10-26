@@ -1,11 +1,14 @@
 import type { Candidate } from "../domain/candidate";
-import { BanIcon, RefreshCwIcon } from "./icons";
+import { BanIcon, DownloadIcon, RefreshCwIcon } from "./icons";
 
 export interface BatchProgressIndicatorProps {
   batchId?: string;
   status?: string;
   candidates?: Candidate[];
   onCancelBatch?: (batchId: string) => void;
+  onDownloadAll?: () => void;
+  isDownloadingAll?: boolean;
+  downloadError?: string | null;
   className?: string;
 }
 
@@ -14,6 +17,9 @@ export function BatchProgressIndicator({
   status = "idle",
   candidates = [],
   onCancelBatch,
+  onDownloadAll,
+  isDownloadingAll = false,
+  downloadError = null,
   className = "",
 }: BatchProgressIndicatorProps) {
   const total = candidates.length;
@@ -82,6 +88,42 @@ export function BatchProgressIndicator({
       <div className="batch-progress-track" aria-hidden="true">
         <div className="batch-progress-fill" style={{ width: `${percent}%` }} />
       </div>
+
+      {completed > 0 && onDownloadAll && (
+        <div className="batch-download-bar">
+          <span className="batch-download-summary">
+            {completed} completed {completed === 1 ? "candidate" : "candidates"}{" "}
+            available for export (PNG, SVG, JSX)
+          </span>
+          <button
+            type="button"
+            className="btn-download-all"
+            onClick={onDownloadAll}
+            disabled={isDownloadingAll}
+            data-testid="batch-download-all-btn"
+            aria-label={`Download all ${completed} candidate assets as ZIP`}
+          >
+            {isDownloadingAll ? (
+              <RefreshCwIcon size={13} className="spin" />
+            ) : (
+              <DownloadIcon size={13} />
+            )}
+            <span>
+              {isDownloadingAll ? "Packaging ZIP..." : "Download All (ZIP)"}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {downloadError && (
+        <div
+          className="batch-download-error"
+          role="alert"
+          data-testid="batch-download-error"
+        >
+          {downloadError}
+        </div>
+      )}
     </div>
   );
 }
