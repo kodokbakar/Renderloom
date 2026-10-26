@@ -309,3 +309,24 @@
     - Rejection of directory traversal attacks.
     - Memory caching and cache invalidation.
 - Verified: `bun test` (751 passing tests across 93 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).
+
+### Batch Candidate Assets Download as Structured ZIP [batch-download-zip]
+- Implemented client-side ZIP archive packaging following Option A directory hierarchy (`png/`, `svg/`, `jsx/`, and `session-info.json` at root) via `fflate`:
+  - Added `src/components/utils/zip-export.ts`:
+    - `formatCandidateFilename()`: Generates 2-digit zero-padded artifact filenames (`candidate-01.png`, etc.).
+    - `buildBatchZipArchive()`: Asynchronously collects and packages completed candidate artifacts in parallel (`png/candidate-NN.png`, `svg/candidate-NN.svg`, `jsx/candidate-NN.jsx`) alongside structured session metadata (`session-info.json`). Supports custom `fetchFn` for resilience and testability, and gracefully tolerates individual artifact fetch failures without terminating archive generation.
+    - `triggerZipDownload()`: Triggers browser-native download using a temporary Blob URL with automatic revocation cleanup.
+    - `downloadBatchZip()`: End-to-end integration helper executing archive creation and download initiation.
+  - Updated `src/components/BatchProgressIndicator.tsx`:
+    - Added optional `onDownloadAll`, `isDownloadingAll`, and `downloadError` props.
+    - Renders action bar beneath the progress track when completed candidates exist (`completed > 0` and `onDownloadAll` provided).
+    - Displays candidate count summary, accessible button with `DownloadIcon` / `RefreshCwIcon` spinner in packaging state, disabled state while downloading, and alert box on error.
+  - Updated `src/app/App.tsx`:
+    - Wired `isDownloadingZip` and `zipDownloadError` state hooks.
+    - Implemented `handleDownloadAll()` invoking `downloadBatchZip()` and bound to `<BatchProgressIndicator>`.
+  - Updated `src/app/App.css`:
+    - Added styling for `.batch-download-bar`, `.batch-download-summary`, `.btn-download-all`, and `.batch-download-error`.
+- Added automated test suites:
+  - `tests/components/zip-export.test.ts`: Unit tests verifying Option A ZIP folder hierarchy (`png/`, `svg/`, `jsx/`), `session-info.json` schema, zero-padded candidate naming, multi-candidate batches, headless download safety, non-completed candidate filtering, and partial artifact failure resilience.
+  - `tests/components/batch-progress-indicator.test.tsx`: Component tests verifying rendering conditions, singular/plural candidate count summaries, download button state transitions, loading indicators, and error message presentation.
+- Verified: `bun test` (771 passing tests across 95 files), `bun run typecheck` (0 errors), `bun run lint` (0 errors), `bun run build` (clean Vite build).
