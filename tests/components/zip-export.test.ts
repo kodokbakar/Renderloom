@@ -268,4 +268,212 @@ describe("zip-export", () => {
     expect(result.bytes.byteLength).toBeGreaterThan(0);
     expect(result.fileCount).toBe(4);
   });
+
+  test("buildBatchZipArchive falls back to candidate list index when candidate.index is undefined", async () => {
+    const candidateWithoutIndex = {
+      id: "cand-no-index",
+      sessionId: "sess-123",
+      state: "completed",
+      artifacts: {
+        pngPath: "cand-custom.png",
+      },
+      createdAt: "2026-03-30T10:00:00Z",
+      updatedAt: "2026-03-30T10:01:00Z",
+    } as unknown as Candidate;
+    const customFetch: BatchZipFetchFn = async () =>
+      new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+
+    const result = await buildBatchZipArchive({
+      session: mockSession,
+      candidates: [candidateWithoutIndex],
+      fetchFn: customFetch,
+    });
+
+    const unzipped = unzipSync(result.bytes);
+    expect(Object.keys(unzipped)).toContain("png/candidate-01.png");
+
+    const infoJson = JSON.parse(
+      new TextDecoder().decode(unzipped["session-info.json"]),
+    );
+    expect(infoJson.candidates[0].index).toBe(0);
+  });
+
+  test("buildBatchZipArchive handles candidates with missing or undefined artifacts", async () => {
+    const candidateNoArtifacts: Candidate = {
+      id: "cand-bare",
+      sessionId: "sess-123",
+      index: 0,
+      state: "completed",
+      createdAt: "2026-03-30T10:00:00Z",
+      updatedAt: "2026-03-30T10:01:00Z",
+    };
+
+    const customFetch: BatchZipFetchFn = async () =>
+      new Response("unused", { status: 200 });
+
+    const result = await buildBatchZipArchive({
+      session: mockSession,
+      candidates: [candidateNoArtifacts],
+      fetchFn: customFetch,
+    });
+
+    const unzipped = unzipSync(result.bytes);
+    expect(Object.keys(unzipped)).toEqual(["session-info.json"]);
+
+    const infoJson = JSON.parse(
+      new TextDecoder().decode(unzipped["session-info.json"]),
+    );
+    expect(infoJson.candidates[0].files).toEqual({
+      png: null,
+      svg: null,
+      jsx: null,
+    });
+  });
+
+  test("buildBatchZipArchive filters all non-completed states", async () => {
+    const states: Candidate["state"][] = [
+      "queued",
+      "generating",
+      "validating",
+      "rendering",
+      "failed",
+      "cancelled",
+    ];
+    const nonCompleted: Candidate[] = states.map((state, i) => ({
+      id: `cand-${state}`,
+      sessionId: "sess-123",
+      index: i,
+      state,
+      createdAt: "2026-03-30T10:00:00Z",
+      updatedAt: "2026-03-30T10:01:00Z",
+    }));
+
+    const customFetch: BatchZipFetchFn = async () =>
+      new Response("test-bytes", { status: 200 });
+
+    const result = await buildBatchZipArchive({
+      session: mockSession,
+      candidates: [...nonCompleted, completedCandidate1],
+      fetchFn: customFetch,
+    });
+
+    const infoJson = JSON.parse(
+      new TextDecoder().decode(unzipSync(result.bytes)["session-info.json"]),
+    );
+    expect(infoJson.totalCandidates).toBe(7);
+    expect(infoJson.completedCandidatesCount).toBe(1);
+    expect(infoJson.candidates).toHaveLength(1);
+    expect(infoJson.candidates[0].id).toBe("cand-1");
+  });
+
+  test("buildBatchZipArchive sanitizes special characters in session slug and falls back on whitespace", async () => {
+    const customFetch: BatchZipFetchFn = async () =>
+      new Response("data", { status: 200 });
+
+    const specialSession = {
+      ...mockSession,
+      slug: "Cyberpunk / 2077 #1 (Final)!",
+    };
+    const res1 = await buildBatchZipArchive({
+      session: specialSession,
+      candidates: [completedCandidate1],
+      fetchFn: customFetch,
+    });
+    expect(res1.filename).toBe("renderloom-Cyberpunk---2077--1--Final--.zip");
+
+    const whitespaceSession = {
+      ...mockSession,
+      slug: "    ",
+    };
+    const res2 = await buildBatchZipArchive({
+      session: whitespaceSession,
+      candidates: [completedCandidate1],
+      fetchFn: customFetch,
+    });
+    expect(res2.filename).toBe("renderloom-sess-123.zip");
+  });
+
+  test("triggerZipDownload creates anchor, triggers click, and revokes object URL in DOM environment", () => {
+    let clicked = false;
+    let appendedChild: unknown = null;
+    let removedChild: unknown = null;
+    let createdUrl = "";
+    let revokedUrl = "";
+    let timeoutCallback: (() => void) | null = null;
+    let timeoutDelay = 0;
+
+    const originalDocument = globalThis.document;
+    const originalURL = globalThis.URL;
+    const originalSetTimeout = globalThis.setTimeout;
+
+    try {
+      const mockAnchor = {
+        href: "",
+        download: "",
+        style: { display: "" },
+        click: () => {
+          clicked = true;
+        },
+      };
+
+      const mockDoc = {
+        createElement: (tag: string) => {
+          if (tag === "a") return mockAnchor;
+          throw new Error(`Unexpected tag ${tag}`);
+        },
+        body: {
+          appendChild: (node: unknown) => {
+            appendedChild = node;
+          },
+          removeChild: (node: unknown) => {
+            removedChild = node;
+          },
+        },
+      };
+
+      const mockURL = {
+        ...originalURL,
+        createObjectURL: (blob: Blob) => {
+          expect(blob.type).toBe("application/zip");
+          createdUrl = "blob:http://localhost/test-uuid";
+          return createdUrl;
+        },
+        revokeObjectURL: (url: string) => {
+          revokedUrl = url;
+        },
+      };
+
+      // @ts-expect-error Mocking DOM in test
+      globalThis.document = mockDoc;
+      // @ts-expect-error Mocking URL in test
+      globalThis.URL = mockURL;
+      globalThis.setTimeout = ((cb: () => void, delay?: number) => {
+        timeoutCallback = cb;
+        timeoutDelay = delay ?? 0;
+        return 1 as unknown as NodeJS.Timeout;
+      }) as unknown as typeof setTimeout;
+
+      triggerZipDownload(new Uint8Array([1, 2, 3]), "batch-export.zip");
+
+      expect(mockAnchor.download).toBe("batch-export.zip");
+      expect(mockAnchor.href).toBe("blob:http://localhost/test-uuid");
+      expect(mockAnchor.style.display).toBe("none");
+      expect(clicked).toBe(true);
+      expect(appendedChild).toBe(mockAnchor);
+      expect(removedChild).toBe(mockAnchor);
+      expect(timeoutDelay).toBe(1000);
+      expect(timeoutCallback).not.toBeNull();
+
+      // Trigger cleanup callback deterministically
+      if (timeoutCallback) {
+        const invoke = timeoutCallback as () => void;
+        invoke();
+      }
+      expect(revokedUrl).toBe("blob:http://localhost/test-uuid");
+    } finally {
+      globalThis.document = originalDocument;
+      globalThis.URL = originalURL;
+      globalThis.setTimeout = originalSetTimeout;
+    }
+  });
 });

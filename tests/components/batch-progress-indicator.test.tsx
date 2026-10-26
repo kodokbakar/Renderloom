@@ -166,4 +166,84 @@ describe("BatchProgressIndicator", () => {
     expect(html).toContain('role="alert"');
     expect(html).toContain("Network connection lost during packaging");
   });
+
+  test("renders cancel button and download bar simultaneously when running with partial completions", () => {
+    const html = renderToStaticMarkup(
+      <BatchProgressIndicator
+        batchId="batch-1"
+        status="running"
+        candidates={[completedCandidate1, generatingCandidate]}
+        onCancelBatch={() => {}}
+        onDownloadAll={() => {}}
+      />,
+    );
+
+    expect(html).toContain("btn-cancel-batch");
+    expect(html).toContain("Cancel Batch");
+    expect(html).toContain("batch-download-bar");
+    expect(html).toContain("btn-download-all");
+    expect(html).toContain(
+      "1 completed candidate available for export (PNG, SVG, JSX)",
+    );
+  });
+
+  test("renders partial success status text along with download bar", () => {
+    const html = renderToStaticMarkup(
+      <BatchProgressIndicator
+        batchId="batch-1"
+        status="partial_success"
+        candidates={[completedCandidate1, completedCandidate2, failedCandidate]}
+        onDownloadAll={() => {}}
+      />,
+    );
+
+    expect(html).toContain("Partial Success (2 completed, 1 failed)");
+    expect(html).toContain("batch-download-bar");
+    expect(html).toContain(
+      "2 completed candidates available for export (PNG, SVG, JSX)",
+    );
+  });
+
+  test("does not render download bar for failed or cancelled batches when completed is 0", () => {
+    const cancelledHtml = renderToStaticMarkup(
+      <BatchProgressIndicator
+        batchId="batch-1"
+        status="cancelled"
+        candidates={[{ ...failedCandidate, state: "cancelled" }]}
+        onDownloadAll={() => {}}
+      />,
+    );
+    expect(cancelledHtml).not.toContain("batch-download-bar");
+
+    const failedHtml = renderToStaticMarkup(
+      <BatchProgressIndicator
+        batchId="batch-1"
+        status="failed"
+        candidates={[failedCandidate]}
+        onDownloadAll={() => {}}
+      />,
+    );
+    expect(failedHtml).not.toContain("batch-download-bar");
+  });
+
+  test("applies custom className and displays accurate progress percentage", () => {
+    const html = renderToStaticMarkup(
+      <BatchProgressIndicator
+        batchId="batch-1"
+        status="running"
+        className="custom-batch-widget"
+        candidates={[
+          completedCandidate1,
+          generatingCandidate,
+          failedCandidate,
+          completedCandidate2,
+        ]}
+      />,
+    );
+
+    expect(html).toContain("custom-batch-widget");
+    // terminal count is 3 (2 completed + 1 failed), total is 4 -> 75%
+    expect(html).toContain("75%");
+    expect(html).toContain('aria-label="Batch generation progress: 75%"');
+  });
 });
